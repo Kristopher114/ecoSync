@@ -1,0 +1,11 @@
+The Problem: During natural disasters, coordinating volunteers, tracking weather, and broadcasting alerts is chaotic. Target Users: Local community members (Regular Users) and Relief Organizers (Admin).
+
+API 1 (Weather): OpenWeatherMap (Free) – To show live weather alerts for the incident location.
+API 2 (Map): Leaflet.js + OpenStreetMap (100% Free) – To display a map of where help is needed.
+API 3 (AI): Gemini API (Free tier) – Users submit a messy description of their emergency, and Gemini automatically categorizes it (e.g., "Medical", "Flood", "Food needed") and assesses urgency.
+API 4 (News): NewsData.io or GNews API (Free) – Pulls in local news regarding the disaster.
+API 5 (Comms): EmailJS or SendGrid (Free tier) – Automatically emails volunteers when a new incident is reported near them.
+CRUD Module: Users can Create, Read, Update, and Delete "Incident Reports" or "Volunteer Offers".
+Admin Dashboard: Shows a chart of total active incidents, the number of registered volunteers, and allows the admin to resolve/delete fake reports.
+
+Why it scores high: It tackles a highly meaningful problem (10/10 for Problem Solving) and mapping + AI looks incredibly advanced (15/15 for Technical Complexity), yet it is very standard to build.

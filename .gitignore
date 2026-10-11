@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Environment Variables (Protects Gemini API key and Supabase key)
+.env
+.env.*
+*.env
+backend/.env
+
+# Build Artifacts
+dist/
+build/
+*/dist/
+
+# Logs
+*.log
+npm-debug.log*
+
+# System & IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
