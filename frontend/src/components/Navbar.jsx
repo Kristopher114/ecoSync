@@ -73,8 +73,8 @@ export default function Navbar({
               {isAdmin ? <ShieldCheck size={14} /> : <User size={14} />}
               <span>{isAdmin ? 'Admin' : 'Volunteer'}</span>
             </div>
-            <span className="user-email-text" title={currentUser.email}>
-              {currentUser.email}
+            <span className="user-email-text" title={currentUser.username || currentUser.email}>
+              @{currentUser.username || currentUser.email}
             </span>
             <button
               id="btn-sign-out"

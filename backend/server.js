@@ -3,6 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 const supabase = require('./supabase');
 const { analyzeIncidentDescription } = require('./gemini');
+const { registerUser, loginUser } = require('./userAuth');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -21,53 +22,41 @@ app.get('/api/status', (req, res) => {
   res.json({ status: 'success', message: 'API is working' });
 });
 
-// --- AUTHENTICATION ROUTES ---
+// --- AUTHENTICATION ROUTES (Username-based) ---
 
 // 1. Register a new user
 app.post('/api/auth/register', async (req, res) => {
-  const { email, password, role } = req.body; // Role will be 'admin' or 'user'
-  
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required' });
+  const { username, email, password, role } = req.body;
+  const userIdentifier = username || email;
+
+  const result = await registerUser(userIdentifier, password, role);
+
+  if (result.error) {
+    return res.status(400).json({ error: result.error });
   }
 
-  // Supabase Auth signup
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        role: role || 'user' // Default to 'user' if not specified
-      }
-    }
+  res.status(201).json({
+    message: 'User registered successfully!',
+    user: result.user
   });
-
-  if (error) {
-    return res.status(400).json({ error: error.message });
-  }
-
-  res.status(201).json({ message: 'User registered successfully!', user: data.user });
 });
 
 // 2. Login an existing user
 app.post('/api/auth/login', async (req, res) => {
-  const { email, password } = req.body;
+  const { username, email, password } = req.body;
+  const userIdentifier = username || email;
 
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required' });
+  const result = await loginUser(userIdentifier, password);
+
+  if (result.error) {
+    return res.status(400).json({ error: result.error });
   }
 
-  // Supabase Auth signin
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
+  res.status(200).json({
+    message: 'Login successful!',
+    user: result.user,
+    session: { user: result.user }
   });
-
-  if (error) {
-    return res.status(400).json({ error: error.message });
-  }
-
-  res.status(200).json({ message: 'Login successful!', session: data.session });
 });
 
 // --- INCIDENTS CRUD ROUTES ---

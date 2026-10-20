@@ -33,3 +33,19 @@ USING (true);
 CREATE POLICY "Allow public delete access"
 ON public.incidents FOR DELETE
 USING (true);
+
+-- Users Table for Username-Based Authentication
+CREATE TABLE IF NOT EXISTS public.app_users (
+    id BIGSERIAL PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'user',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.app_users ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public all access on app_users"
+ON public.app_users FOR ALL
+USING (true)
+WITH CHECK (true);

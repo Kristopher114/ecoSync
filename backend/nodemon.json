@@ -1,0 +1,4 @@
+{
+  "watch": ["server.js", "gemini.js", "supabase.js", "userAuth.js"],
+  "ignore": ["local_users.json", "*.log", "test-*.js", "debug-*.js"]
+}

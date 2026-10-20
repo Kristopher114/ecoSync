@@ -118,6 +118,7 @@ The system features **two distinct user roles**:
 | **4** | Map did not behave like Google Maps & lacked landmark recognition | Map had static controls and lacked search, geolocation, and on-click landmark feedback. | Added floating search bar (via Nominatim Search API), GPS locate button, and click-to-drop pin that displays reverse-geocoded street/barangay names in an instant popup. |
 | **5** | Report modal required tedious vertical scrolling | Form inputs were stacked vertically with excessive padding and multi-row textareas. | Re-engineered the modal into a compact, squeezed 3-column single-view layout that fits entirely on screen with `overflow: visible`. |
 | **6** | Missing login & sign up for Admin Coordinators | Frontend originally had a placeholder role toggle instead of real user accounts. | Created `AuthModal.jsx`, connected to Supabase Auth backend endpoints, and implemented an access gate requiring the Admin role for the Command Hub. |
+| **7** | `email rate limit exceeded` on signup | Supabase Free Tier enforces a strict email rate limit (3-4 verification emails/hour) on signups. | Switched authentication from email-based to **Username-Based Authentication** (`admin_iligan`, `volunteer1`). Stored securely via SHA-256 password hashing with Supabase PostgreSQL and persistent local backup, completely eliminating email rate limits. |
 
 ---
 

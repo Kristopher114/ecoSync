@@ -22,3 +22,7 @@ npm-debug.log*
 Thumbs.db
 .vscode/
 .idea/
+backend/local_users.json
+backend/test-*.js
+backend/check-*.js
+backend/debug-*.js

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { X, Lock, Mail, ShieldCheck, User, LogIn, UserPlus, Loader2, AlertCircle } from 'lucide-react';
+import { X, Lock, User, ShieldCheck, LogIn, UserPlus, Loader2, AlertCircle } from 'lucide-react';
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   const [isLoginMode, setIsLoginMode] = useState(true);
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('user'); // 'user' | 'admin'
   const [isLoading, setIsLoading] = useState(false);
@@ -24,8 +24,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
     try {
       const payload = isLoginMode
-        ? { email, password }
-        : { email, password, role };
+        ? { username, password }
+        : { username, password, role };
 
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -41,18 +41,17 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
       if (isLoginMode) {
         // User logged in
-        const userRole = data.session?.user?.user_metadata?.role || 'user';
         const userObj = {
-          email: data.session?.user?.email || email,
-          role: userRole,
-          id: data.session?.user?.id
+          username: data.user?.username || username,
+          role: data.user?.role || 'user',
+          id: data.user?.id
         };
         localStorage.setItem('ecosync_user', JSON.stringify(userObj));
         onAuthSuccess(userObj);
         onClose();
       } else {
         // User registered
-        setSuccessMessage('Account registered successfully! Logging you in...');
+        setSuccessMessage('Account registered successfully! You can now sign in.');
         setTimeout(() => {
           setIsLoginMode(true);
           setSuccessMessage('');
@@ -114,18 +113,19 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
         )}
 
         <form onSubmit={handleSubmit} className="auth-form">
-          {/* Email */}
+          {/* Username */}
           <div className="form-group-compact">
-            <label>Email Address</label>
+            <label>Username</label>
             <div className="input-with-icon">
-              <Mail size={15} className="input-icon" />
+              <User size={15} className="input-icon" />
               <input
-                id="auth-email-input"
-                type="email"
-                placeholder="name@ecosync.org"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="auth-username-input"
+                type="text"
+                placeholder="e.g. admin_iligan or volunteer_1"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
+                autoComplete="username"
               />
             </div>
           </div>
@@ -142,7 +142,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={4}
+                autoComplete={isLoginMode ? "current-password" : "new-password"}
               />
             </div>
           </div>
@@ -187,7 +188,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
           {/* Quick Demo Helper Hint */}
           <div className="demo-login-hint">
-            💡 <span>Demo: Register as an <strong>Admin Coordinator</strong> to unlock the Command Hub, or as a <strong>Citizen</strong> to report emergencies.</span>
+            💡 <span>Quick Demo Accounts: <strong>admin</strong> (pass: <code>admin123</code>) or <strong>volunteer</strong> (pass: <code>volunteer123</code>), or register your own username!</span>
           </div>
 
           {/* Action Button */}
@@ -202,7 +203,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
               {isLoading ? (
                 <>
                   <Loader2 size={16} className="spin" />
-                  <span>Connecting to Supabase...</span>
+                  <span>Processing...</span>
                 </>
               ) : (
                 <>
