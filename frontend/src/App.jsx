@@ -6,6 +6,7 @@ import WeatherWidget from './components/WeatherWidget';
 import ReportModal from './components/ReportModal';
 import AuthModal from './components/AuthModal';
 import { ShieldAlert, Lock, UserPlus, Radio, CheckCircle2, X } from 'lucide-react';
+import { API_BASE_URL } from './config';
 import './App.css';
 
 const CATEGORIES = ['All', 'Flood', 'Medical', 'Fire', 'Rescue', 'Food & Water', 'General'];
@@ -33,7 +34,7 @@ export default function App() {
   // Fetch all incidents from Node.js Express backend
   const fetchIncidents = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/incidents');
+      const res = await fetch(`${API_BASE_URL}/api/incidents`);
       if (res.ok) {
         const data = await res.json();
         setIncidents(data);
@@ -52,7 +53,7 @@ export default function App() {
   // Update Status (PUT)
   const handleUpdateStatus = async (id, newStatus) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/incidents/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/incidents/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
@@ -68,7 +69,7 @@ export default function App() {
   // Delete Incident (DELETE)
   const handleDeleteIncident = async (id) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/incidents/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/incidents/${id}`, {
         method: 'DELETE'
       });
       if (res.ok) {
@@ -158,7 +159,7 @@ export default function App() {
     ];
 
     for (const item of samples) {
-      await fetch('http://localhost:5000/api/incidents', {
+      await fetch(`${API_BASE_URL}/api/incidents`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(item)

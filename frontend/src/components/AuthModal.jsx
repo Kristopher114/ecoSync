@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Lock, User, ShieldCheck, LogIn, UserPlus, Loader2, AlertCircle } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   const [isLoginMode, setIsLoginMode] = useState(true);
@@ -19,8 +20,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
     setIsLoading(true);
 
     const endpoint = isLoginMode
-      ? 'http://localhost:5000/api/auth/login'
-      : 'http://localhost:5000/api/auth/register';
+      ? `${API_BASE_URL}/api/auth/login`
+      : `${API_BASE_URL}/api/auth/register`;
 
     try {
       const payload = isLoginMode

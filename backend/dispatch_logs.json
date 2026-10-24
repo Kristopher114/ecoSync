@@ -1,5 +1,23 @@
 [
   {
+    "id": "ALERT-4007",
+    "incident_id": null,
+    "incident_title": "Rapid Evacuation & Resource Mobilization Drill",
+    "category": "Flood",
+    "urgency": "Critical",
+    "location": "Poblacion Riverside Sector 4",
+    "recipients_count": 24,
+    "recipient_group": "Search & Rescue Rapid Response Unit",
+    "actionable_needs": [
+      "Rubber Rescue Boats",
+      "Emergency Rations",
+      "First Aid Kits"
+    ],
+    "channel": "Email Broadcast (EmailJS / SendGrid Grid) + Emergency Wire",
+    "status": "Dispatched & Confirmed",
+    "dispatched_at": "2026-10-24T15:33:15.547Z"
+  },
+  {
     "id": "ALERT-7212",
     "incident_id": null,
     "incident_title": "Automated Drill Test",

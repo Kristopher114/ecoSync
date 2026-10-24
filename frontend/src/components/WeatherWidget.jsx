@@ -3,6 +3,7 @@ import {
   CloudRain, Wind, AlertTriangle, Newspaper, RefreshCw,
   MapPin, Sun, Cloud, Zap, Droplets, ExternalLink, ShieldAlert
 } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 export default function WeatherWidget({ pinnedLocation }) {
   const [weather, setWeather] = useState(null);
@@ -25,7 +26,7 @@ export default function WeatherWidget({ pinnedLocation }) {
     else setIsLoading(true);
 
     try {
-      const res = await fetch(`http://localhost:5000/api/weather?lat=${lat}&lng=${lng}`);
+      const res = await fetch(`${API_BASE_URL}/api/weather?lat=${lat}&lng=${lng}`);
       if (res.ok) {
         const data = await res.json();
         setWeather(data);
@@ -45,7 +46,7 @@ export default function WeatherWidget({ pinnedLocation }) {
   const fetchNews = async () => {
     setIsNewsLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/news');
+      const res = await fetch(`${API_BASE_URL}/api/news`);
       if (res.ok) {
         const data = await res.json();
         if (data.articles && data.articles.length > 0) {

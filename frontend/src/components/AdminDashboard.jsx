@@ -4,6 +4,7 @@ import {
   Users, BarChart2, AlertTriangle, Flame, Droplets, HeartPulse,
   Radio, Send, RefreshCw, BellRing, CheckCircle2, ShieldCheck, Mail
 } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteIncident }) {
   const [filterStatus, setFilterStatus] = useState('All');
@@ -18,7 +19,7 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
   const fetchDispatchLogs = async () => {
     setIsLoadingLogs(true);
     try {
-      const res = await fetch('http://localhost:5000/api/alerts/logs');
+      const res = await fetch(`${API_BASE_URL}/api/alerts/logs`);
       if (res.ok) {
         const data = await res.json();
         setDispatchLogs(data);
@@ -48,7 +49,7 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
     };
 
     try {
-      const res = await fetch('http://localhost:5000/api/alerts/dispatch', {
+      const res = await fetch(`${API_BASE_URL}/api/alerts/dispatch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(drillPayload)

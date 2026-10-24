@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Sparkles, AlertCircle, Send, Loader2, CheckCircle2, MapPin } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 export default function ReportModal({ isOpen, onClose, onSubmitSuccess, clickedCoords }) {
   const [description, setDescription] = useState('');
@@ -40,7 +41,7 @@ export default function ReportModal({ isOpen, onClose, onSubmitSuccess, clickedC
     setAiSuccessMessage('');
 
     try {
-      const res = await fetch('http://localhost:5000/api/ai/analyze-incident', {
+      const res = await fetch(`${API_BASE_URL}/api/ai/analyze-incident`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ description })
@@ -70,7 +71,7 @@ export default function ReportModal({ isOpen, onClose, onSubmitSuccess, clickedC
 
     setIsSubmitting(true);
     try {
-      const res = await fetch('http://localhost:5000/api/incidents', {
+      const res = await fetch(`${API_BASE_URL}/api/incidents`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
