@@ -128,6 +128,7 @@ The system features **two distinct user roles**:
 - [x] **Core System Feature 2**: Database storing system records (Supabase PostgreSQL `incidents` table).
 - [x] **Core System Feature 3**: At least one full CRUD module (Incidents Create, Read, Update, Delete).
 - [x] **Core System Feature 4**: Dashboard and summary page for the admin role (Admin Command Hub with KPI cards and triage charts).
+- [x] **External API 1 (Live Weather Radar)**: Open-Meteo High-Resolution Meteorological API + Automated Disaster Hazard Evaluator (real-time temp, humidity, wind, rainfall rate, storm advisories for pinned map coordinates).
 - [x] **External API 2 (Map)**: Leaflet.js + OpenStreetMap tile server + Nominatim Geocoding REST API.
 - [x] **External API 3 (AI)**: Google Gemini API (`@google/genai`) for real-time unstructured emergency categorization.
-- [x] **Reliability & Usability (30 pts)**: Zero-error production build, fail-safe AI parser, non-scrolling compact modals.
+- [x] **Reliability & Usability (30 pts)**: Zero-error production build, fail-safe AI parser, non-scrolling compact modals, 5-minute weather caching.

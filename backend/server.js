@@ -4,6 +4,7 @@ require('dotenv').config();
 const supabase = require('./supabase');
 const { analyzeIncidentDescription } = require('./gemini');
 const { registerUser, loginUser } = require('./userAuth');
+const { getLiveWeather } = require('./weather');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -162,6 +163,19 @@ app.post('/api/ai/analyze-incident', async (req, res) => {
 
     const analysis = await analyzeIncidentDescription(description);
     res.status(200).json(analysis);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- LIVE WEATHER RADAR ROUTE (OPEN-METEO / OPENWEATHER API) ---
+app.get('/api/weather', async (req, res) => {
+  try {
+    const lat = parseFloat(req.query.lat) || 8.1033;
+    const lng = parseFloat(req.query.lng) || 124.0673;
+
+    const weatherData = await getLiveWeather(lat, lng);
+    res.status(200).json(weatherData);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

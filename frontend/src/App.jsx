@@ -216,7 +216,23 @@ export default function App() {
 
           {/* Right Sidebar: Weather Alerts (API 1) & News (API 4) */}
           <aside>
-            <WeatherWidget />
+            <WeatherWidget
+              pinnedLocation={
+                selectedIncident
+                  ? {
+                      lat: selectedIncident.latitude,
+                      lng: selectedIncident.longitude,
+                      name: selectedIncident.location_name || selectedIncident.title
+                    }
+                  : clickedCoords
+                    ? {
+                        lat: clickedCoords.lat,
+                        lng: clickedCoords.lng,
+                        name: clickedCoords.address
+                      }
+                    : null
+              }
+            />
           </aside>
         </main>
       ) : (
