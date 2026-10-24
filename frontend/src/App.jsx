@@ -5,7 +5,7 @@ import AdminDashboard from './components/AdminDashboard';
 import WeatherWidget from './components/WeatherWidget';
 import ReportModal from './components/ReportModal';
 import AuthModal from './components/AuthModal';
-import { ShieldAlert, Lock, UserPlus } from 'lucide-react';
+import { ShieldAlert, Lock, UserPlus, Radio, CheckCircle2, X } from 'lucide-react';
 import './App.css';
 
 const CATEGORIES = ['All', 'Flood', 'Medical', 'Fire', 'Rescue', 'Food & Water', 'General'];
@@ -28,6 +28,7 @@ export default function App() {
   const [clickedCoords, setClickedCoords] = useState(null);
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeBroadcastAlert, setActiveBroadcastAlert] = useState(null);
 
   // Fetch all incidents from Node.js Express backend
   const fetchIncidents = async () => {
@@ -86,6 +87,15 @@ export default function App() {
   const handleOpenReportWithLocation = (lat, lng, address) => {
     setClickedCoords({ lat, lng, address });
     setIsReportOpen(true);
+  };
+
+  // Called when a citizen successfully submits an incident report
+  const handleReportSuccess = (incident, dispatch) => {
+    fetchIncidents();
+    if (dispatch) {
+      setActiveBroadcastAlert(dispatch);
+      setTimeout(() => setActiveBroadcastAlert(null), 9000);
+    }
   };
 
   // Auth Handlers
@@ -170,6 +180,28 @@ export default function App() {
         onOpenAuth={() => setIsAuthOpen(true)}
         onSignOut={handleSignOut}
       />
+
+      {/* Real-time Emergency Broadcast Alert Banner (API #5) */}
+      {activeBroadcastAlert && (
+        <div className="global-broadcast-banner">
+          <div className="global-broadcast-content">
+            <Radio size={18} className="pulse-icon text-cyan" />
+            <div>
+              <strong>🚨 EMERGENCY BROADCAST DISPATCHED ({activeBroadcastAlert.id}):</strong>{' '}
+              <span>
+                Alert sent to <strong>{activeBroadcastAlert.recipients_count} volunteers</strong> ({activeBroadcastAlert.recipient_group}) via {activeBroadcastAlert.channel}!
+              </span>
+            </div>
+          </div>
+          <button
+            className="global-broadcast-close"
+            onClick={() => setActiveBroadcastAlert(null)}
+            title="Dismiss Alert"
+          >
+            <X size={15} />
+          </button>
+        </div>
+      )}
 
       {/* Main View Router */}
       {activeTab === 'map' ? (
@@ -273,7 +305,7 @@ export default function App() {
       <ReportModal
         isOpen={isReportOpen}
         onClose={() => setIsReportOpen(false)}
-        onSubmitSuccess={() => fetchIncidents()}
+        onSubmitSuccess={handleReportSuccess}
         clickedCoords={clickedCoords}
       />
 

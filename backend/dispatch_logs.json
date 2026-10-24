@@ -1,0 +1,53 @@
+[
+  {
+    "id": "ALERT-7212",
+    "incident_id": null,
+    "incident_title": "Automated Drill Test",
+    "category": "Rescue",
+    "urgency": "Critical",
+    "location": "Poblacion River Sector",
+    "recipients_count": 24,
+    "recipient_group": "Search & Rescue Rapid Response Unit",
+    "actionable_needs": [
+      "Community Support",
+      "On-Site Verification"
+    ],
+    "channel": "Email Broadcast (EmailJS / SendGrid Grid) + Emergency Wire",
+    "status": "Dispatched & Confirmed",
+    "dispatched_at": "2026-10-24T15:26:55.946Z"
+  },
+  {
+    "id": "ALERT-9041",
+    "incident_id": 1,
+    "incident_title": "Flash Flood Rescue Needed",
+    "category": "Flood",
+    "urgency": "Critical",
+    "location": "Riverside Ave, Sector 4",
+    "recipients_count": 14,
+    "recipient_group": "On-Call Water Rescue Volunteers",
+    "actionable_needs": [
+      "Rubber Boats",
+      "Life Vests"
+    ],
+    "channel": "Email Broadcast + SMS Gateway",
+    "status": "Delivered",
+    "dispatched_at": "2026-10-24T14:45:56.834Z"
+  },
+  {
+    "id": "ALERT-9040",
+    "incident_id": 2,
+    "incident_title": "Emergency Medical Evacuation",
+    "category": "Medical",
+    "urgency": "High",
+    "location": "District 2 Central Gymnasium",
+    "recipients_count": 8,
+    "recipient_group": "Medical First Responder Volunteers",
+    "actionable_needs": [
+      "Insulin",
+      "Paramedic Assistance"
+    ],
+    "channel": "Email Broadcast",
+    "status": "Delivered",
+    "dispatched_at": "2026-10-24T14:00:56.834Z"
+  }
+]

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   CloudRain, Wind, AlertTriangle, Newspaper, RefreshCw,
-  MapPin, Sun, Cloud, Zap, Droplets, ShieldCheck, CheckCircle2
+  MapPin, Sun, Cloud, Zap, Droplets, ExternalLink, ShieldAlert
 } from 'lucide-react';
 
 export default function WeatherWidget({ pinnedLocation }) {
@@ -9,6 +9,11 @@ export default function WeatherWidget({ pinnedLocation }) {
   const [locationLabel, setLocationLabel] = useState('Poblacion, Iligan Region');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Live Disaster News Wire state (API #4)
+  const [newsArticles, setNewsArticles] = useState([]);
+  const [newsSource, setNewsSource] = useState('Live Disaster News Wire Feed');
+  const [isNewsLoading, setIsNewsLoading] = useState(true);
 
   // Default coordinate (Iligan / Northern Mindanao region)
   const activeLat = pinnedLocation?.lat || 8.1033;
@@ -36,14 +41,39 @@ export default function WeatherWidget({ pinnedLocation }) {
     }
   };
 
-  // Re-fetch whenever user clicks or drops a pin on the map
+  // Fetch real-time disaster news wire (API #4: GNews / Google News Disaster RSS Feed)
+  const fetchNews = async () => {
+    setIsNewsLoading(true);
+    try {
+      const res = await fetch('http://localhost:5000/api/news');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.articles && data.articles.length > 0) {
+          setNewsArticles(data.articles);
+          if (data.source) setNewsSource(data.source);
+        }
+      }
+    } catch (err) {
+      console.warn('News wire fetch warning:', err.message);
+    } finally {
+      setIsNewsLoading(false);
+    }
+  };
+
+  // Re-fetch weather whenever user clicks or drops a pin on the map
   useEffect(() => {
     const label = pinnedLocation?.name || (pinnedLocation?.lat ? `Pinned: ${Number(pinnedLocation.lat).toFixed(3)}, ${Number(pinnedLocation.lng).toFixed(3)}` : 'Poblacion, Iligan Region');
     fetchWeather(activeLat, activeLng, label);
   }, [pinnedLocation?.lat, pinnedLocation?.lng]);
 
+  // Fetch live disaster news on initial load
+  useEffect(() => {
+    fetchNews();
+  }, []);
+
   const handleManualRefresh = () => {
     fetchWeather(activeLat, activeLng, locationLabel, true);
+    fetchNews();
   };
 
   // Helper to pick condition icon
@@ -87,7 +117,7 @@ export default function WeatherWidget({ pinnedLocation }) {
           <button
             className="weather-refresh-btn"
             onClick={handleManualRefresh}
-            title="Refresh Live Weather"
+            title="Refresh Live Weather & News"
             disabled={isLoading || isRefreshing}
           >
             <RefreshCw size={13} className={isRefreshing ? 'spin' : ''} />
@@ -143,7 +173,7 @@ export default function WeatherWidget({ pinnedLocation }) {
           </>
         ) : null}
 
-        {/* API Attribution Tag */}
+        {/* API 1 Attribution Tag */}
         <div className="weather-api-credit">
           <span className="live-dot-pulse"></span>
           <span>API 1 Active: Open-Meteo Live Radar (100% Free)</span>
@@ -152,37 +182,58 @@ export default function WeatherWidget({ pinnedLocation }) {
 
       <div className="sidebar-divider" />
 
-      {/* Live Disaster News Wire (API #4 Preview) */}
+      {/* Live Disaster News Wire (API #4) */}
       <div className="news-section">
         <div className="section-title-wrap">
           <div className="weather-title-left">
             <Newspaper className="text-cyan" size={18} />
             <h4>Live Disaster News Wire</h4>
           </div>
+          <button
+            className="weather-refresh-btn"
+            onClick={fetchNews}
+            title="Refresh Live News Wire"
+            disabled={isNewsLoading}
+          >
+            <RefreshCw size={13} className={isNewsLoading ? 'spin' : ''} />
+          </button>
         </div>
 
-        <div className="news-list">
-          <div className="news-item">
-            <span className="news-bullet"></span>
-            <div>
-              <p className="news-title">Disaster Relief Operations Deployed to Northern Flood Sector</p>
-              <span className="news-meta">Community Dispatch • 12m ago</span>
-            </div>
+        {isNewsLoading && newsArticles.length === 0 ? (
+          <div className="weather-loading-skeleton">
+            <div className="skeleton-bar"></div>
+            <span className="text-xs text-dim">Syncing live disaster bulletins...</span>
           </div>
-          <div className="news-item">
-            <span className="news-bullet"></span>
-            <div>
-              <p className="news-title">Central Evacuation Centers Reach 70% Capacity - Gyms Activated</p>
-              <span className="news-meta">Relief Ops • 38m ago</span>
-            </div>
+        ) : (
+          <div className="news-list">
+            {newsArticles.map((article) => (
+              <div key={article.id} className="news-item">
+                <span className="news-bullet"></span>
+                <div className="news-content-wrap">
+                  <a
+                    href={article.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="news-link-title"
+                    title={article.title}
+                  >
+                    <span>{article.title}</span>
+                    <ExternalLink size={11} className="news-ext-icon" />
+                  </a>
+                  <div className="news-meta-row">
+                    <span className="news-source-badge">{article.source}</span>
+                    <span className="news-meta-time">• {article.time || 'Recently'}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-          <div className="news-item">
-            <span className="news-bullet"></span>
-            <div>
-              <p className="news-title">Dam Water Spillway Caution: Riverbank Settlements Advised</p>
-              <span className="news-meta">Hydrology Bureau • 1h ago</span>
-            </div>
-          </div>
+        )}
+
+        {/* API 4 Attribution Tag */}
+        <div className="weather-api-credit" style={{ marginTop: '12px' }}>
+          <span className="live-dot-pulse" style={{ background: '#38bdf8', boxShadow: '0 0 8px #38bdf8' }}></span>
+          <span>API 4 Active: {newsSource}</span>
         </div>
       </div>
     </div>

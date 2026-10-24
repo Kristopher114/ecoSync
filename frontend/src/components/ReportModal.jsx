@@ -88,7 +88,7 @@ export default function ReportModal({ isOpen, onClose, onSubmitSuccess, clickedC
       if (!res.ok) throw new Error('Failed to create report');
 
       const result = await res.json();
-      onSubmitSuccess(result.incident);
+      onSubmitSuccess(result.incident, result.dispatch);
       onClose();
     } catch (err) {
       alert('Error creating incident: ' + err.message);

@@ -5,6 +5,8 @@ const supabase = require('./supabase');
 const { analyzeIncidentDescription } = require('./gemini');
 const { registerUser, loginUser } = require('./userAuth');
 const { getLiveWeather } = require('./weather');
+const { getLiveDisasterNews } = require('./news');
+const { dispatchVolunteerAlert, getDispatchLogs } = require('./comms');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -147,7 +149,22 @@ app.post('/api/incidents', async (req, res) => {
       .select();
 
     if (error) throw error;
-    res.status(201).json({ message: 'Incident created successfully', incident: data[0] });
+
+    // API #5: Automatically trigger Volunteer Emergency Dispatch for Critical or High Urgency
+    let dispatchInfo = null;
+    if (data[0] && ['Critical', 'High'].includes(data[0].urgency)) {
+      try {
+        dispatchInfo = await dispatchVolunteerAlert(data[0]);
+      } catch (dispErr) {
+        console.warn('Dispatch notification non-blocking warning:', dispErr.message);
+      }
+    }
+
+    res.status(201).json({
+      message: 'Incident created successfully',
+      incident: data[0],
+      dispatch: dispatchInfo
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -176,6 +193,35 @@ app.get('/api/weather', async (req, res) => {
 
     const weatherData = await getLiveWeather(lat, lng);
     res.status(200).json(weatherData);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- LIVE DISASTER NEWS WIRE ROUTE (GNEWS / REAL-TIME NEWS API) ---
+app.get('/api/news', async (req, res) => {
+  try {
+    const newsData = await getLiveDisasterNews();
+    res.status(200).json(newsData);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- EMERGENCY VOLUNTEER ALERT DISPATCH ROUTE (COMMS API) ---
+app.get('/api/alerts/logs', (req, res) => {
+  try {
+    const logs = getDispatchLogs();
+    res.status(200).json(logs);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/alerts/dispatch', async (req, res) => {
+  try {
+    const alertResult = await dispatchVolunteerAlert(req.body);
+    res.status(200).json(alertResult);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
