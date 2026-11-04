@@ -7,6 +7,13 @@ const { registerUser, loginUser } = require('./userAuth');
 const { getLiveWeather } = require('./weather');
 const { getLiveDisasterNews } = require('./news');
 const { dispatchVolunteerAlert, getDispatchLogs } = require('./comms');
+const {
+  getAllIncidents,
+  getIncidentById,
+  createIncidentRecord,
+  updateIncidentRecord,
+  deleteIncidentRecord
+} = require('./incidentsStore');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -62,17 +69,12 @@ app.post('/api/auth/login', async (req, res) => {
   });
 });
 
-// --- INCIDENTS CRUD ROUTES ---
+// --- INCIDENTS CRUD ROUTES (with resilient self-healing storage) ---
 
 // 1. GET ALL INCIDENTS
 app.get('/api/incidents', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('incidents')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
+    const data = await getAllIncidents();
     res.status(200).json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -83,15 +85,8 @@ app.get('/api/incidents', async (req, res) => {
 app.get('/api/incidents/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { data, error } = await supabase
-      .from('incidents')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (error) throw error;
+    const data = await getIncidentById(id);
     if (!data) return res.status(404).json({ error: 'Incident not found' });
-
     res.status(200).json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -131,30 +126,23 @@ app.post('/api/incidents', async (req, res) => {
       return res.status(400).json({ error: 'Title is required' });
     }
 
-    const { data, error } = await supabase
-      .from('incidents')
-      .insert([
-        {
-          title,
-          description,
-          category: category || 'General',
-          urgency: urgency || 'Medium',
-          status: 'Open',
-          latitude,
-          longitude,
-          location_name,
-          reporter_email
-        }
-      ])
-      .select();
-
-    if (error) throw error;
+    const createdIncident = await createIncidentRecord({
+      title,
+      description,
+      category: category || 'General',
+      urgency: urgency || 'Medium',
+      status: 'Open',
+      latitude,
+      longitude,
+      location_name,
+      reporter_email
+    });
 
     // API #5: Automatically trigger Volunteer Emergency Dispatch for Critical or High Urgency
     let dispatchInfo = null;
-    if (data[0] && ['Critical', 'High'].includes(data[0].urgency)) {
+    if (createdIncident && ['Critical', 'High'].includes(createdIncident.urgency)) {
       try {
-        dispatchInfo = await dispatchVolunteerAlert(data[0]);
+        dispatchInfo = await dispatchVolunteerAlert(createdIncident);
       } catch (dispErr) {
         console.warn('Dispatch notification non-blocking warning:', dispErr.message);
       }
@@ -162,7 +150,7 @@ app.post('/api/incidents', async (req, res) => {
 
     res.status(201).json({
       message: 'Incident created successfully',
-      incident: data[0],
+      incident: createdIncident,
       dispatch: dispatchInfo
     });
   } catch (error) {
@@ -232,16 +220,8 @@ app.put('/api/incidents/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
-    updates.updated_at = new Date();
-
-    const { data, error } = await supabase
-      .from('incidents')
-      .update(updates)
-      .eq('id', id)
-      .select();
-
-    if (error) throw error;
-    res.status(200).json({ message: 'Incident updated successfully', incident: data[0] });
+    const updatedIncident = await updateIncidentRecord(id, updates);
+    res.status(200).json({ message: 'Incident updated successfully', incident: updatedIncident });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -251,13 +231,7 @@ app.put('/api/incidents/:id', async (req, res) => {
 app.delete('/api/incidents/:id', async (req, res) => {
   try {
     const { id } = req.params;
-
-    const { error } = await supabase
-      .from('incidents')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
+    await deleteIncidentRecord(id);
     res.status(200).json({ message: 'Incident deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
