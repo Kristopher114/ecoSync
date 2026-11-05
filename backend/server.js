@@ -138,9 +138,13 @@ app.post('/api/incidents', async (req, res) => {
       reporter_email
     });
 
-    // API #5: Automatically trigger Volunteer Emergency Dispatch for Critical or High Urgency
+    // API #5: Automatically trigger Volunteer Emergency Dispatch & Email Notification
     let dispatchInfo = null;
-    if (createdIncident && ['Critical', 'High'].includes(createdIncident.urgency)) {
+    const shouldDispatch = createdIncident && (
+      ['Critical', 'High'].includes(createdIncident.urgency) ||
+      (createdIncident.reporter_email && createdIncident.reporter_email.includes('@') && !createdIncident.reporter_email.includes('anonymous@'))
+    );
+    if (shouldDispatch) {
       try {
         dispatchInfo = await dispatchVolunteerAlert(createdIncident);
       } catch (dispErr) {
