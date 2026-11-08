@@ -7,7 +7,7 @@ import ReportModal from './components/ReportModal';
 import AuthModal from './components/AuthModal';
 import {
   ShieldAlert, Lock, UserPlus, Radio, CheckCircle2, X,
-  Calendar, Clock, RotateCcw, Sparkles, Filter
+  Calendar, Clock, Filter
 } from 'lucide-react';
 import { API_BASE_URL } from './config';
 import './App.css';
@@ -124,67 +124,6 @@ export default function App() {
     setActiveTab('map');
   };
 
-  // Seed sample data if empty with today's timestamp
-  const handleSeedSamples = async () => {
-    const now = new Date().toISOString();
-    const samples = [
-      {
-        title: 'Flash Flood Rescue Needed',
-        description: 'Rising water trapped 6 elderly residents on 2nd floor balcony. Need rubber boat and life vests.',
-        category: 'Flood',
-        urgency: 'Critical',
-        latitude: 8.2150,
-        longitude: 124.2420,
-        location_name: 'Poblacion Riverside Sector',
-        reporter_email: 'volunteer.mark@ecosync.org',
-        created_at: now
-      },
-      {
-        title: 'Emergency Medical Evacuation',
-        description: 'Diabetic patient collapsed due to insulin shortage in evacuation shelter.',
-        category: 'Medical',
-        urgency: 'High',
-        latitude: 8.2280,
-        longitude: 124.2490,
-        location_name: 'District Community Gymnasium',
-        reporter_email: 'nurse.sarah@relief.org',
-        created_at: now
-      },
-      {
-        title: 'Electrical Spark / Fire Hazard',
-        description: 'Downed power pole sparking near saturated floodwater and residential houses.',
-        category: 'Fire',
-        urgency: 'Critical',
-        latitude: 8.2320,
-        longitude: 124.2380,
-        location_name: 'Corner Provincial Highway',
-        reporter_email: 'citizen99@gmail.com',
-        created_at: now
-      },
-      {
-        title: 'Clean Drinking Water Shortage',
-        description: 'Community deep-well contaminated by flood runoff. 120 families requiring bottled water rations.',
-        category: 'Food & Water',
-        urgency: 'Medium',
-        latitude: 8.2050,
-        longitude: 124.2350,
-        location_name: 'Barangay Hall Evacuation Center',
-        reporter_email: 'coordinator@ecosync.org',
-        created_at: now
-      }
-    ];
-
-    for (const item of samples) {
-      await fetch(`${API_BASE_URL}/api/incidents`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(item)
-      });
-    }
-    setDateFilter('today');
-    fetchIncidents();
-  };
-
   // Helper to check if an ISO date string matches today's calendar date
   const isDateToday = (dateStr) => {
     if (!dateStr) return false;
@@ -298,15 +237,7 @@ export default function App() {
                   </button>
                 ))}
 
-                {incidents.length === 0 && (
-                  <button
-                    className="filter-chip"
-                    style={{ background: 'rgba(6, 182, 212, 0.2)', color: '#38bdf8', marginLeft: 'auto' }}
-                    onClick={handleSeedSamples}
-                  >
-                    ⚡ Populate Demo Incidents
-                  </button>
-                )}
+
               </div>
 
               {/* Date & Daily Reset Filter Bar */}
@@ -370,37 +301,6 @@ export default function App() {
                   </span>
                 </div>
               </div>
-
-              {/* Daily Reset Zero-State Notice */}
-              {dateFilter === 'today' && todayCount === 0 && (
-                <div className="daily-reset-notice glass-panel">
-                  <div className="daily-notice-text">
-                    <Sparkles size={16} className="text-cyan" />
-                    <span>
-                      <strong>Map Reset Active for Today ({todayFormatted}):</strong> No new emergency landmarks reported today.
-                      {pastDaysCount > 0 ? ` ${pastDaysCount} older landmark(s) are archived from previous days to keep the map clutter-free.` : ''}
-                    </span>
-                  </div>
-                  <div className="daily-notice-actions">
-                    {pastDaysCount > 0 && (
-                      <button
-                        type="button"
-                        className="daily-view-past-btn"
-                        onClick={() => setDateFilter('all')}
-                      >
-                        View All Landmarks ({pastDaysCount})
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="daily-seed-btn"
-                      onClick={handleSeedSamples}
-                    >
-                      ⚡ Populate Today's Demo Incidents
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Interactive Leaflet Map with Active Date Filter */}
