@@ -276,7 +276,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                   <User size={16} className="text-cyan" />
                   <div>
                     <strong>Citizen / Volunteer</strong>
-                    <p>Report incidents and browse public relief map</p>
+                    <p>Submit verified emergency reports & join on-site relief response squads</p>
                   </div>
                 </label>
 

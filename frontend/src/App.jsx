@@ -151,9 +151,52 @@ export default function App() {
     setClickedCoords({ lat, lng, address });
   };
 
+  const handleOpenReport = () => {
+    if (!currentUser) {
+      if (window.confirm('🔒 Sign In Required:\n\nSubmitting emergency incident reports requires signing in as a Registered Citizen/Volunteer to maintain verified reporting and prevent spam dispatches.\n\nWould you like to sign in or register now?')) {
+        setIsAuthOpen(true);
+      }
+      return;
+    }
+    setIsReportOpen(true);
+  };
+
   const handleOpenReportWithLocation = (lat, lng, address) => {
     setClickedCoords({ lat, lng, address });
+    if (!currentUser) {
+      if (window.confirm('🔒 Sign In Required:\n\nSubmitting emergency incident reports requires signing in as a Registered Citizen/Volunteer to maintain verified reporting and prevent spam dispatches.\n\nWould you like to sign in or register now?')) {
+        setIsAuthOpen(true);
+      }
+      return;
+    }
     setIsReportOpen(true);
+  };
+
+  // Registered Volunteer on-site emergency response handler
+  const handleVolunteerIncident = async (incidentId) => {
+    if (!currentUser) {
+      if (window.confirm('🔒 Volunteer Sign In Required:\n\nPlease sign in or register as a Citizen/Volunteer to register as an on-site responder for this emergency.\n\nWould you like to sign in now?')) {
+        setIsAuthOpen(true);
+      }
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/incidents/${incidentId}/volunteer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: currentUser.username })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`✅ Success: Thank you @${currentUser.username}! You are now registered as an on-site volunteer responder for this emergency.`);
+        fetchIncidents();
+      } else {
+        alert(data.error || 'Failed to register as volunteer responder.');
+      }
+    } catch (err) {
+      alert('Error connecting to server: ' + err.message);
+    }
   };
 
   // Called when a citizen successfully submits an incident report
@@ -232,10 +275,16 @@ export default function App() {
     return true;
   });
 
-  // Filter by category
+  // Filter by category or My Reports
   const categoryFilteredIncidents = selectedCategory === 'All'
     ? dateFilteredIncidents
-    : dateFilteredIncidents.filter(inc => inc.category === selectedCategory);
+    : selectedCategory === 'MyReports'
+      ? dateFilteredIncidents.filter(inc =>
+          inc.reporter_name === currentUser?.username ||
+          (Array.isArray(inc.volunteers) && inc.volunteers.includes(currentUser?.username)) ||
+          inc.reporter_email?.includes(currentUser?.username)
+        )
+      : dateFilteredIncidents.filter(inc => inc.category === selectedCategory);
 
   // Filter by Municipality / Jurisdiction
   const displayedIncidents = effectiveMunicipality === 'ALL'
@@ -255,7 +304,7 @@ export default function App() {
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        onOpenReport={() => setIsReportOpen(true)}
+        onOpenReport={handleOpenReport}
         currentUser={currentUser}
         onOpenAuth={() => setIsAuthOpen(true)}
         onSignOut={handleSignOut}
@@ -325,6 +374,8 @@ export default function App() {
               onOpenReportWithLocation={handleOpenReportWithLocation}
               isMapExpanded={isMapExpanded}
               onToggleExpandMap={() => setIsMapExpanded(prev => !prev)}
+              currentUser={currentUser}
+              onVolunteerIncident={handleVolunteerIncident}
             />
           </section>
 
@@ -375,6 +426,19 @@ export default function App() {
                 <div className="filter-divider" />
 
                 <span className="filter-group-label">Category:</span>
+                {currentUser && (
+                  <button
+                    className={`filter-chip ${selectedCategory === 'MyReports' ? 'active' : ''}`}
+                    onClick={() => setSelectedCategory(selectedCategory === 'MyReports' ? 'All' : 'MyReports')}
+                    style={{
+                      borderColor: selectedCategory === 'MyReports' ? '#10b981' : 'rgba(16, 185, 129, 0.4)',
+                      background: selectedCategory === 'MyReports' ? '#10b981' : 'rgba(16, 185, 129, 0.12)',
+                      color: selectedCategory === 'MyReports' ? '#07090e' : '#6ee7b7'
+                    }}
+                  >
+                    👤 My Reports & Volunteered ({incidents.filter(inc => inc.reporter_name === currentUser.username || (Array.isArray(inc.volunteers) && inc.volunteers.includes(currentUser.username))).length})
+                  </button>
+                )}
                 {CATEGORIES.map(cat => (
                   <button
                     key={cat}
@@ -521,6 +585,7 @@ export default function App() {
         onClose={() => setIsReportOpen(false)}
         onSubmitSuccess={handleReportSuccess}
         clickedCoords={clickedCoords}
+        currentUser={currentUser}
       />
 
       {/* Authentication Modal (Sign In / Register with Supabase) */}

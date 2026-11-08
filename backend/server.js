@@ -278,6 +278,43 @@ app.put('/api/incidents/:id', async (req, res) => {
   }
 });
 
+// 4.1 VOLUNTEER TO RESPOND TO INCIDENT (For Registered Volunteers / Citizens)
+app.post('/api/incidents/:id/volunteer', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { username } = req.body;
+    if (!username) {
+      return res.status(400).json({ error: 'Username is required to volunteer' });
+    }
+
+    const incident = await getIncidentById(id);
+    if (!incident) {
+      return res.status(404).json({ error: 'Incident not found' });
+    }
+
+    const currentVolunteers = Array.isArray(incident.volunteers)
+      ? [...incident.volunteers]
+      : [];
+
+    if (!currentVolunteers.includes(username)) {
+      currentVolunteers.push(username);
+    }
+
+    const updatedIncident = await updateIncidentRecord(id, {
+      volunteers: currentVolunteers,
+      volunteer_count: currentVolunteers.length
+    });
+
+    res.status(200).json({
+      message: `Volunteer @${username} registered as on-site responder!`,
+      incident: updatedIncident,
+      volunteers: currentVolunteers
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 5. DELETE INCIDENT
 app.delete('/api/incidents/:id', async (req, res) => {
   try {

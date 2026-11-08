@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Sparkles, AlertCircle, Send, Loader2, CheckCircle2, MapPin } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 
-export default function ReportModal({ isOpen, onClose, onSubmitSuccess, clickedCoords }) {
+export default function ReportModal({ isOpen, onClose, onSubmitSuccess, clickedCoords, currentUser }) {
   const [description, setDescription] = useState('');
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('General');
@@ -82,7 +82,8 @@ export default function ReportModal({ isOpen, onClose, onSubmitSuccess, clickedC
           latitude: parseFloat(latitude),
           longitude: parseFloat(longitude),
           location_name: locationName || 'Pinned on Map',
-          reporter_email: reporterEmail || 'anonymous@community.org'
+          reporter_name: currentUser?.username || 'Verified Volunteer',
+          reporter_email: reporterEmail || (currentUser ? `${currentUser.username}@community.org` : 'anonymous@community.org')
         })
       });
 
@@ -114,6 +115,26 @@ export default function ReportModal({ isOpen, onClose, onSubmitSuccess, clickedC
             <X size={18} />
           </button>
         </div>
+
+        {currentUser && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: 'rgba(16, 185, 129, 0.12)',
+            border: '1px solid rgba(16, 185, 129, 0.35)',
+            padding: '6px 12px',
+            borderRadius: '8px',
+            marginBottom: '10px',
+            fontSize: '0.75rem',
+            color: '#6ee7b7'
+          }}>
+            <CheckCircle2 size={14} className="text-emerald" style={{ flexShrink: 0 }} />
+            <span>
+              Verified {currentUser.role === 'admin' ? 'Admin Coordinator' : 'Volunteer'} Report by <strong>@{currentUser.username}</strong>
+            </span>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="modal-form-compact">
           {/* Row 1: Emergency Description + Inline AI Classify Button */}

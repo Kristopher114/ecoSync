@@ -32,7 +32,9 @@ export default function DisasterMap({
   onSelectIncident,
   onOpenReportWithLocation,
   isMapExpanded = false,
-  onToggleExpandMap
+  onToggleExpandMap,
+  currentUser = null,
+  onVolunteerIncident
 }) {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -681,6 +683,10 @@ export default function DisasterMap({
         incDate.getDate() === new Date().getDate()
       );
 
+      const isUserVolunteered = currentUser && Array.isArray(inc.volunteers) && inc.volunteers.includes(currentUser.username);
+      const volunteerCount = inc.volunteer_count || (Array.isArray(inc.volunteers) ? inc.volunteers.length : 0);
+      const reporterDisplay = inc.reporter_name ? `Reported by @${inc.reporter_name}` : null;
+
       const popupDiv = document.createElement('div');
       popupDiv.style.minWidth = '250px';
       popupDiv.style.padding = '4px';
@@ -700,27 +706,56 @@ export default function DisasterMap({
         <div style="font-size: 11px; color: #94a3b8; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px; margin-bottom: 8px;">
           📍 ${inc.location_name || `${Number(inc.latitude).toFixed(4)}, ${Number(inc.longitude).toFixed(4)}`}
         </div>
-        <button id="btn-evacuate-incident-${inc.id}" style="
-          width: 100%;
-          background: linear-gradient(135deg, #06b6d4, #0284c7);
-          color: white;
-          border: none;
-          padding: 8px 12px;
-          border-radius: 8px;
-          font-weight: bold;
-          font-size: 12px;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-        ">
-          🧭 Evacuate to Nearest Shelter (OSRM)
-        </button>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 11px; background: rgba(255,255,255,0.03); padding: 4px 8px; border-radius: 6px;">
+          <span style="color: #94a3b8;">${reporterDisplay || 'Citizen Report'}</span>
+          <span style="color: #34d399; font-weight: bold;">👥 ${volunteerCount} Responders</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <button id="btn-evacuate-incident-${inc.id}" style="
+            width: 100%;
+            background: linear-gradient(135deg, #06b6d4, #0284c7);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+          ">
+            🧭 Evacuate to Nearest Shelter (OSRM)
+          </button>
+          <button id="btn-volunteer-incident-${inc.id}" style="
+            width: 100%;
+            background: ${isUserVolunteered ? 'rgba(16, 185, 129, 0.2)' : 'linear-gradient(135deg, #10b981, #059669)'};
+            color: ${isUserVolunteered ? '#6ee7b7' : '#ffffff'};
+            border: ${isUserVolunteered ? '1px solid rgba(16, 185, 129, 0.45)' : 'none'};
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+          ">
+            ${isUserVolunteered ? '✅ You are responding to this incident' : '✋ Volunteer to Respond'}
+          </button>
+        </div>
       `;
 
       popupDiv.querySelector(`#btn-evacuate-incident-${inc.id}`).onclick = () => {
         handleEvacuationRoute(inc.latitude, inc.longitude, null, null, 'driving');
+      };
+
+      popupDiv.querySelector(`#btn-volunteer-incident-${inc.id}`).onclick = () => {
+        if (onVolunteerIncident) {
+          onVolunteerIncident(inc.id);
+        }
       };
 
       marker.bindPopup(popupDiv);
@@ -738,7 +773,7 @@ export default function DisasterMap({
         { duration: 1.2 }
       );
     }
-  }, [incidents, selectedCategory, selectedIncident]);
+  }, [incidents, selectedCategory, selectedIncident, currentUser]);
 
   // Drop a landmark pin & open action popup for a selected registered barangay/landmark
   const handleSelectPlace = (place) => {
