@@ -47,6 +47,13 @@ export default function DisasterMap({
   const [activePinAddress, setActivePinAddress] = useState(null);
   const [activePinCoords, setActivePinCoords] = useState(null);
 
+  // Evacuation Shelters & OSRM Routing States (API #5)
+  const [showShelters, setShowShelters] = useState(true);
+  const [shelters, setShelters] = useState(EVACUATION_SHELTERS);
+  const [activeRoute, setActiveRoute] = useState(null);
+  const [isRouting, setIsRouting] = useState(false);
+  const [routingError, setRoutingError] = useState(null);
+
   const effectiveMunicipality = lockedMunicipality || selectedMunicipality || 'ALL';
   const lockedMuniObj = lockedMunicipality ? getMunicipalityById(lockedMunicipality) : null;
   const activeMuniObj = getMunicipalityById(effectiveMunicipality);
@@ -99,13 +106,6 @@ export default function DisasterMap({
     setActivePinCoords(null);
     setActivePinAddress(null);
   };
-
-  // Evacuation Shelters & OSRM Routing States (API #5)
-  const [showShelters, setShowShelters] = useState(true);
-  const [shelters, setShelters] = useState(EVACUATION_SHELTERS);
-  const [activeRoute, setActiveRoute] = useState(null);
-  const [isRouting, setIsRouting] = useState(false);
-  const [routingError, setRoutingError] = useState(null);
 
   // Fetch Evacuation Shelters Directory from Backend (with instant built-in fallback)
   useEffect(() => {
