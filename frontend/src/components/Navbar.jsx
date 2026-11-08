@@ -10,6 +10,9 @@ export default function Navbar({
   onSignOut
 }) {
   const isAdmin = currentUser?.role === 'admin';
+  const adminMuniLabel = isAdmin && (currentUser?.municipality_name || currentUser?.municipality)
+    ? (currentUser.municipality_name || currentUser.municipality)
+    : null;
 
   const handleAdminTabClick = () => {
     if (!currentUser) {
@@ -35,7 +38,9 @@ export default function Navbar({
           </div>
           <div>
             <h1 className="logo-title">EcoSync</h1>
-            <span className="logo-subtitle">Disaster & Relief Coordinator</span>
+            <span className="logo-subtitle">
+              {adminMuniLabel ? `🔒 ${adminMuniLabel} Jurisdiction` : 'Disaster & Relief Coordinator'}
+            </span>
           </div>
         </div>
       </div>
@@ -47,7 +52,7 @@ export default function Navbar({
           onClick={() => setActiveTab('map')}
         >
           <MapPin size={18} />
-          <span>Live Incident Map</span>
+          <span>{adminMuniLabel ? `${adminMuniLabel} Map` : 'Live Incident Map'}</span>
         </button>
 
         <button
@@ -56,7 +61,7 @@ export default function Navbar({
           onClick={handleAdminTabClick}
         >
           <BarChart3 size={18} />
-          <span>Admin Command Hub</span>
+          <span>{adminMuniLabel ? `${adminMuniLabel} Command Hub` : 'Admin Command Hub'}</span>
         </button>
       </nav>
 
@@ -66,7 +71,7 @@ export default function Navbar({
           <div className="auth-user-badge">
             <div className={`user-role-indicator ${isAdmin ? 'role-admin' : 'role-user'}`}>
               {isAdmin ? <ShieldCheck size={14} /> : <User size={14} />}
-              <span>{isAdmin ? 'Admin' : 'Volunteer'}</span>
+              <span>{isAdmin ? (adminMuniLabel ? `Admin • ${adminMuniLabel}` : 'Admin') : 'Volunteer'}</span>
             </div>
             <span className="user-email-text" title={currentUser.username || currentUser.email}>
               @{currentUser.username || currentUser.email}

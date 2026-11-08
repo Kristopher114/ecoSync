@@ -2,10 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import {
   Search, Navigation, AlertCircle, PlusCircle, Loader2,
-  Shield, Compass, X, Car, Footprints, CheckCircle2, MapPin
+  Shield, Compass, X, Car, Footprints, CheckCircle2, MapPin, Lock
 } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import { EVACUATION_SHELTERS, calculateDirectOsrmRoute } from '../sheltersData';
+import { getMunicipalityById, doesShelterBelongToMunicipality } from '../municipalities';
 
 const URGENCY_COLORS = {
   Critical: '#ef4444',
@@ -19,6 +20,7 @@ export default function DisasterMap({
   selectedCategory,
   dateFilter = 'today',
   selectedMunicipality = 'ALL',
+  lockedMunicipality = null,
   targetLocation,
   onMapClick,
   selectedIncident,
@@ -30,12 +32,16 @@ export default function DisasterMap({
   const markersLayerRef = useRef(null);
   const sheltersLayerRef = useRef(null);
   const routeLayerRef = useRef(null);
+  const boundaryLayerRef = useRef(null);
   const clickedPinRef = useRef(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [activePinAddress, setActivePinAddress] = useState(null);
   const [activePinCoords, setActivePinCoords] = useState(null);
+
+  const effectiveMunicipality = lockedMunicipality || selectedMunicipality || 'ALL';
+  const lockedMuniObj = lockedMunicipality ? getMunicipalityById(lockedMunicipality) : null;
 
   // Clear manually dropped landmark pin
   const handleClearPin = () => {
@@ -48,7 +54,6 @@ export default function DisasterMap({
   };
 
   // Evacuation Shelters & OSRM Routing States (API #5)
-  // Pre-seeded with all 18 verified Lanao del Norte shelters for instant load on Vercel / Cloud
   const [showShelters, setShowShelters] = useState(true);
   const [shelters, setShelters] = useState(EVACUATION_SHELTERS);
   const [activeRoute, setActiveRoute] = useState(null);
@@ -79,10 +84,10 @@ export default function DisasterMap({
     if (!mapContainerRef.current) return;
     if (mapInstanceRef.current) return;
 
-    // Default center (Province of Lanao del Norte / target location)
-    const defaultLat = targetLocation?.lat || 8.0800;
-    const defaultLng = targetLocation?.lng || 123.9500;
-    const defaultZoom = targetLocation?.zoom || 10;
+    const initialMuni = lockedMuniObj || targetLocation;
+    const defaultLat = initialMuni?.lat || 8.0800;
+    const defaultLng = initialMuni?.lng || 123.9500;
+    const defaultZoom = initialMuni?.zoom || 10;
 
     const map = L.map(mapContainerRef.current, {
       center: [defaultLat, defaultLng],
@@ -91,7 +96,8 @@ export default function DisasterMap({
       scrollWheelZoom: true,
       doubleClickZoom: true,
       fadeAnimation: true,
-      zoomAnimation: true
+      zoomAnimation: true,
+      maxBoundsViscosity: 1.0
     });
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -103,6 +109,7 @@ export default function DisasterMap({
     }).addTo(map);
 
     // Groups for layers
+    boundaryLayerRef.current = L.layerGroup().addTo(map);
     markersLayerRef.current = L.layerGroup().addTo(map);
     sheltersLayerRef.current = L.layerGroup().addTo(map);
     routeLayerRef.current = L.layerGroup().addTo(map);
@@ -275,9 +282,58 @@ export default function DisasterMap({
     };
   }, []);
 
+  // Lock Map Bounds & Camera when an Admin with a Specific Municipality is logged in
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    if (boundaryLayerRef.current) {
+      boundaryLayerRef.current.clearLayers();
+    }
+
+    if (lockedMuniObj && lockedMuniObj.id !== 'ALL') {
+      const pad = lockedMuniObj.boundsPad || 0.055;
+      const bounds = L.latLngBounds(
+        [lockedMuniObj.lat - pad, lockedMuniObj.lng - pad],
+        [lockedMuniObj.lat + pad, lockedMuniObj.lng + pad]
+      );
+
+      // First unlock temporarily so flyTo can smoothly move into the municipality
+      map.setMaxBounds(null);
+      map.setMinZoom(lockedMuniObj.minZoom || 13);
+      map.flyTo([lockedMuniObj.lat, lockedMuniObj.lng], lockedMuniObj.zoom || 15, {
+        duration: 1.0
+      });
+
+      // Apply strict municipal boundary lock so the Admin's map sticks strictly inside their municipality
+      setTimeout(() => {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.setMaxBounds(bounds);
+        }
+      }, 1050);
+
+      // Draw subtle jurisdiction boundary frame
+      if (boundaryLayerRef.current) {
+        L.rectangle(bounds, {
+          color: '#06b6d4',
+          weight: 2,
+          dashArray: '6, 6',
+          fillColor: '#06b6d4',
+          fillOpacity: 0.02,
+          interactive: false
+        }).addTo(boundaryLayerRef.current);
+      }
+    } else {
+      // Unlock bounds for regular Citizens / Volunteers
+      map.setMaxBounds(null);
+      map.setMinZoom(9);
+    }
+  }, [lockedMunicipality]);
+
   // Fly map smoothly when user changes Municipality / Jurisdiction dropdown
   useEffect(() => {
     if (!mapInstanceRef.current || !targetLocation) return;
+    if (lockedMuniObj && lockedMuniObj.id !== 'ALL') return; // Admin is already locked to their municipality
     if (targetLocation.lat && targetLocation.lng) {
       mapInstanceRef.current.flyTo(
         [targetLocation.lat, targetLocation.lng],
@@ -285,7 +341,12 @@ export default function DisasterMap({
         { duration: 1.3 }
       );
     }
-  }, [targetLocation]);
+  }, [targetLocation, lockedMunicipality]);
+
+  // Filter shelters according to effective municipality (Admin's locked municipality or user's selected filter)
+  const displayedShelters = effectiveMunicipality === 'ALL'
+    ? shelters
+    : shelters.filter(s => doesShelterBelongToMunicipality(s, effectiveMunicipality));
 
   // Calculate & Draw Real-Time Road Route via OSRM API (API #5, with direct browser OSRM fallback)
   const handleEvacuationRoute = async (startLat, startLng, destLat = null, destLng = null, mode = 'driving') => {
@@ -293,10 +354,20 @@ export default function DisasterMap({
     setIsRouting(true);
     setRoutingError(null);
 
+    const candidateShelters = displayedShelters.length > 0 ? displayedShelters : shelters;
+
+    // If Admin is locked to a municipality and no explicit destLat/destLng was given, route to their municipality's nearest shelter
+    let targetDestLat = destLat;
+    let targetDestLng = destLng;
+    if (!targetDestLat && !targetDestLng && lockedMuniObj && displayedShelters.length > 0) {
+      targetDestLat = displayedShelters[0].latitude;
+      targetDestLng = displayedShelters[0].longitude;
+    }
+
     try {
       let queryUrl = `${API_BASE_URL}/api/evacuation-route?startLat=${startLat}&startLng=${startLng}&mode=${mode}`;
-      if (destLat && destLng) {
-        queryUrl += `&destLat=${destLat}&destLng=${destLng}`;
+      if (targetDestLat && targetDestLng) {
+        queryUrl += `&destLat=${targetDestLat}&destLng=${targetDestLng}`;
       }
 
       let routeData = null;
@@ -311,7 +382,14 @@ export default function DisasterMap({
       }
 
       if (!routeData || !routeData.success || !routeData.geojson) {
-        routeData = await calculateDirectOsrmRoute(startLat, startLng, destLat, destLng, mode, shelters);
+        routeData = await calculateDirectOsrmRoute(
+          startLat,
+          startLng,
+          targetDestLat,
+          targetDestLng,
+          mode,
+          candidateShelters
+        );
       }
 
       // Clear existing route line if any
@@ -347,8 +425,8 @@ export default function DisasterMap({
         ...routeData,
         startLat,
         startLng,
-        destLat,
-        destLng,
+        destLat: targetDestLat,
+        destLng: targetDestLng,
         mode
       });
     } catch (err) {
@@ -378,27 +456,6 @@ export default function DisasterMap({
     }
     setActiveRoute(null);
   };
-
-  // Filter shelters according to selected municipality (or show all province-wide)
-  const displayedShelters = selectedMunicipality === 'ALL'
-    ? shelters
-    : shelters.filter(s => {
-        if (!s.municipality) return true;
-        const sMuni = s.municipality.toLowerCase();
-        if (selectedMunicipality === 'ILIGAN') return sMuni.includes('iligan');
-        if (selectedMunicipality === 'TUBOD') return sMuni.includes('tubod');
-        if (selectedMunicipality === 'KAPATAGAN') return sMuni.includes('kapatagan');
-        if (selectedMunicipality === 'LALA') return sMuni.includes('lala');
-        if (selectedMunicipality === 'KAUSWAGAN') return sMuni.includes('kauswagan');
-        if (selectedMunicipality === 'LINAMON') return sMuni.includes('linamon');
-        if (selectedMunicipality === 'BACOLOD') return sMuni.includes('bacolod');
-        if (selectedMunicipality === 'KOLAMBUGAN') return sMuni.includes('kolambugan');
-        if (selectedMunicipality === 'BALOI') return sMuni.includes('baloi') || sMuni.includes('balo-i');
-        if (selectedMunicipality === 'MAIGO') return sMuni.includes('maigo');
-        if (selectedMunicipality === 'BAROY') return sMuni.includes('baroy');
-        if (selectedMunicipality === 'SND') return sMuni.includes('sultan naga') || sMuni.includes('snd');
-        return true;
-      });
 
   // Render Evacuation Shelter Markers on Map (Green Shield Icons)
   useEffect(() => {
@@ -492,16 +549,17 @@ export default function DisasterMap({
       `;
 
       popupDiv.querySelector(`#btn-route-here-${shelter.id}`).onclick = () => {
-        // Use active pin coords or default center as origin
-        const startLat = activePinCoords?.lat || (selectedIncident ? selectedIncident.latitude : 8.2250);
-        const startLng = activePinCoords?.lng || (selectedIncident ? selectedIncident.longitude : 124.2400);
+        const defaultOriginLat = lockedMuniObj?.lat || targetLocation?.lat || 8.2250;
+        const defaultOriginLng = lockedMuniObj?.lng || targetLocation?.lng || 124.2400;
+        const startLat = activePinCoords?.lat || (selectedIncident ? selectedIncident.latitude : defaultOriginLat);
+        const startLng = activePinCoords?.lng || (selectedIncident ? selectedIncident.longitude : defaultOriginLng);
         handleEvacuationRoute(startLat, startLng, shelter.latitude, shelter.longitude, 'driving');
       };
 
       marker.bindPopup(popupDiv);
       sheltersLayerRef.current.addLayer(marker);
     });
-  }, [shelters, displayedShelters, showShelters, activePinCoords, selectedIncident]);
+  }, [shelters, displayedShelters, showShelters, activePinCoords, selectedIncident, lockedMunicipality]);
 
   // Update Incident Markers
   useEffect(() => {
@@ -619,22 +677,43 @@ export default function DisasterMap({
     }
   }, [incidents, selectedCategory, selectedIncident]);
 
-  // Google Maps Search
+  // Google Maps Search (Restricted to Admin's Municipality when locked)
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchQuery.trim() || !mapInstanceRef.current) return;
 
     setIsSearching(true);
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`);
+      const scopedQuery = lockedMuniObj
+        ? `${searchQuery}, ${lockedMuniObj.shortName}, Lanao del Norte`
+        : searchQuery;
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(scopedQuery)}`);
       const results = await res.json();
       if (results && results.length > 0) {
         const first = results[0];
         const lat = parseFloat(first.lat);
         const lon = parseFloat(first.lon);
-        mapInstanceRef.current.flyTo([lat, lon], 14, { duration: 1.5 });
+
+        if (lockedMuniObj) {
+          const pad = (lockedMuniObj.boundsPad || 0.055) + 0.02;
+          const bounds = L.latLngBounds(
+            [lockedMuniObj.lat - pad, lockedMuniObj.lng - pad],
+            [lockedMuniObj.lat + pad, lockedMuniObj.lng + pad]
+          );
+          if (!bounds.contains([lat, lon])) {
+            alert(`🔒 Jurisdiction Locked: Your Admin map is restricted exclusively to ${lockedMuniObj.shortName}.`);
+            mapInstanceRef.current.flyTo([lockedMuniObj.lat, lockedMuniObj.lng], lockedMuniObj.zoom || 15);
+            return;
+          }
+        }
+
+        mapInstanceRef.current.flyTo([lat, lon], 15, { duration: 1.5 });
       } else {
-        alert('Location not found. Try another city or landmark.');
+        alert(
+          lockedMuniObj
+            ? `Landmark not found inside ${lockedMuniObj.shortName}.`
+            : 'Location not found. Try another city or landmark.'
+        );
       }
     } catch (err) {
       console.warn('Search error:', err);
@@ -645,6 +724,10 @@ export default function DisasterMap({
 
   // GPS "Locate Me" Button
   const handleLocateMe = () => {
+    if (lockedMuniObj) {
+      mapInstanceRef.current?.flyTo([lockedMuniObj.lat, lockedMuniObj.lng], lockedMuniObj.zoom || 15, { duration: 1.2 });
+      return;
+    }
     if (!navigator.geolocation || !mapInstanceRef.current) {
       alert('Geolocation is not supported by your browser.');
       return;
@@ -668,7 +751,11 @@ export default function DisasterMap({
         <Search size={16} className="text-dim" />
         <input
           type="text"
-          placeholder="Search city, barangay, or landmark..."
+          placeholder={
+            lockedMuniObj
+              ? `Search barangay or landmark in ${lockedMuniObj.shortName}...`
+              : 'Search city, barangay, or landmark...'
+          }
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -700,16 +787,20 @@ export default function DisasterMap({
           title="Toggle view of all designated evacuation centers"
         >
           <Shield size={15} />
-          <span>{showShelters ? `🏥 Shelters Visible (${displayedShelters.length})` : '🏥 View All Evacuation Centers'}</span>
+          <span>
+            {showShelters
+              ? `🏥 ${lockedMuniObj ? lockedMuniObj.shortName : ''} Shelters (${displayedShelters.length})`
+              : '🏥 View Evacuation Centers'}
+          </span>
         </button>
       </div>
 
-      {/* Floating GPS Locate Button */}
+      {/* Floating GPS / Center on Jurisdiction Button */}
       <button
         type="button"
         className="gmaps-gps-btn"
         onClick={handleLocateMe}
-        title="Center on my location"
+        title={lockedMuniObj ? `Re-center on ${lockedMuniObj.shortName}` : 'Center on my location'}
       >
         <Navigation size={18} />
       </button>

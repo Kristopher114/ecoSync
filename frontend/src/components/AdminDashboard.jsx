@@ -2,25 +2,48 @@ import React, { useState, useEffect } from 'react';
 import {
   ShieldAlert, CheckCircle, Clock, Trash2, Edit3,
   BarChart2, AlertTriangle, RefreshCw, CheckCircle2,
-  Compass, Navigation, Layers, Database, PieChart
+  Compass, Navigation, Layers, Database, PieChart, Lock, MapPin
 } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import { EVACUATION_SHELTERS, calculateDirectOsrmRoute } from '../sheltersData';
+import {
+  getMunicipalityById,
+  doesIncidentBelongToMunicipality,
+  doesShelterBelongToMunicipality
+} from '../municipalities';
 
-export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteIncident }) {
+export default function AdminDashboard({
+  incidents,
+  onUpdateStatus,
+  onDeleteIncident,
+  assignedMunicipality = null,
+  currentUser = null
+}) {
   // Sidebar active section: 'crud' | 'shelters' | 'analytics' | 'all'
   const [activeSection, setActiveSection] = useState('crud');
   const [filterStatus, setFilterStatus] = useState('All');
   const [shelterMuniFilter, setShelterMuniFilter] = useState('All');
 
+  const assignedMuniObj = assignedMunicipality && assignedMunicipality !== 'ALL'
+    ? getMunicipalityById(assignedMunicipality)
+    : null;
+
   // Safe Evacuation Centers & OSRM Routing API (API #5)
-  // Pre-seeded with all 18 verified Lanao del Norte shelters so cloud deploys load 100% instantly
   const [shelters, setShelters] = useState(EVACUATION_SHELTERS);
   const [isLoadingShelters, setIsLoadingShelters] = useState(false);
   const [isSimulatingRoute, setIsSimulatingRoute] = useState(false);
   const [routeToast, setRouteToast] = useState('');
   const [isResettingDaily, setIsResettingDaily] = useState(false);
   const [resetToast, setResetToast] = useState('');
+
+  // Scope incidents and shelters strictly to the Admin's assigned municipality jurisdiction
+  const scopedIncidents = assignedMuniObj
+    ? incidents.filter(inc => doesIncidentBelongToMunicipality(inc, assignedMuniObj.id))
+    : incidents;
+
+  const scopedShelters = assignedMuniObj
+    ? shelters.filter(s => doesShelterBelongToMunicipality(s, assignedMuniObj.id))
+    : shelters;
 
   // Helper to check if an ISO date string matches today's calendar date
   const isDateToday = (dateStr) => {
@@ -52,7 +75,7 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
       }
 
       // Cloud fallback if remote backend hasn't deployed /api/incidents/reset-daily yet
-      const olderOpenIncidents = incidents.filter(
+      const olderOpenIncidents = scopedIncidents.filter(
         inc => inc.status !== 'Resolved' && !isDateToday(inc.created_at)
       );
       for (const inc of olderOpenIncidents) {
@@ -62,7 +85,7 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
       }
 
       setResetToast(
-        `🧹 Daily map maintenance complete (${olderOpenIncidents.length} previous-day open landmark${olderOpenIncidents.length === 1 ? '' : 's'} archived; showing today's active reports).`
+        `🧹 Daily map maintenance complete (${olderOpenIncidents.length} previous-day open landmark${olderOpenIncidents.length === 1 ? '' : 's'} archived in ${assignedMuniObj ? assignedMuniObj.shortName : 'Lanao del Norte'}).`
       );
       setTimeout(() => setResetToast(''), 7000);
     } catch (err) {
@@ -102,9 +125,9 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
     setIsSimulatingRoute(true);
     setRouteToast('');
 
-    const startLat = 8.2250;
-    const startLng = 124.2400;
-    const targetShelter = shelter || shelters[0] || EVACUATION_SHELTERS[0];
+    const startLat = assignedMuniObj ? assignedMuniObj.lat : 8.2250;
+    const startLng = assignedMuniObj ? assignedMuniObj.lng : 124.2400;
+    const targetShelter = shelter || scopedShelters[0] || shelters[0] || EVACUATION_SHELTERS[0];
     const destLat = targetShelter ? targetShelter.latitude : null;
     const destLng = targetShelter ? targetShelter.longitude : null;
 
@@ -126,7 +149,7 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
       }
 
       if (!routeData || !routeData.success) {
-        routeData = await calculateDirectOsrmRoute(startLat, startLng, destLat, destLng, 'driving', shelters);
+        routeData = await calculateDirectOsrmRoute(startLat, startLng, destLat, destLng, 'driving', scopedShelters);
       }
 
       setRouteToast(
@@ -140,52 +163,78 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
     }
   };
 
-  // KPI calculations
-  const totalIncidents = incidents.length;
-  const criticalCount = incidents.filter(i => i.urgency === 'Critical' && i.status !== 'Resolved').length;
-  const inProgressCount = incidents.filter(i => i.status === 'In Progress').length;
-  const resolvedCount = incidents.filter(i => i.status === 'Resolved').length;
+  // KPI calculations (scoped strictly to the Admin's jurisdiction)
+  const totalIncidents = scopedIncidents.length;
+  const criticalCount = scopedIncidents.filter(i => i.urgency === 'Critical' && i.status !== 'Resolved').length;
+  const inProgressCount = scopedIncidents.filter(i => i.status === 'In Progress').length;
+  const resolvedCount = scopedIncidents.filter(i => i.status === 'Resolved').length;
 
-  // Evacuation capacity calculations
-  const totalShelterCapacity = shelters.reduce((acc, curr) => acc + (curr.total_capacity || 0), 0);
-  const totalOccupancy = shelters.reduce((acc, curr) => acc + (curr.current_occupancy || 0), 0);
+  // Evacuation capacity calculations (scoped strictly to the Admin's jurisdiction)
+  const totalShelterCapacity = scopedShelters.reduce((acc, curr) => acc + (curr.total_capacity || 0), 0);
+  const totalOccupancy = scopedShelters.reduce((acc, curr) => acc + (curr.current_occupancy || 0), 0);
   const availableCots = totalShelterCapacity - totalOccupancy;
   const occupancyPct = totalShelterCapacity > 0 ? Math.round((totalOccupancy / totalShelterCapacity) * 100) : 0;
 
   // Category counts for charts
-  const categoryCounts = incidents.reduce((acc, curr) => {
+  const categoryCounts = scopedIncidents.reduce((acc, curr) => {
     const cat = curr.category || 'General';
     acc[cat] = (acc[cat] || 0) + 1;
     return acc;
   }, {});
 
   // Urgency counts for charts
-  const urgencyCounts = incidents.reduce((acc, curr) => {
+  const urgencyCounts = scopedIncidents.reduce((acc, curr) => {
     const urg = curr.urgency || 'Medium';
     acc[urg] = (acc[urg] || 0) + 1;
     return acc;
   }, {});
 
   const filteredIncidents = filterStatus === 'All'
-    ? incidents
-    : incidents.filter(i => i.status === filterStatus);
+    ? scopedIncidents
+    : scopedIncidents.filter(i => i.status === filterStatus);
 
-  const uniqueShelterMunicipalities = ['All', ...new Set(shelters.map(s => s.municipality).filter(Boolean))];
-  const filteredShelters = shelterMuniFilter === 'All'
-    ? shelters
-    : shelters.filter(s => s.municipality === shelterMuniFilter);
+  const uniqueShelterMunicipalities = ['All', ...new Set(scopedShelters.map(s => s.municipality).filter(Boolean))];
+  const filteredShelters = assignedMuniObj
+    ? scopedShelters
+    : shelterMuniFilter === 'All'
+      ? scopedShelters
+      : scopedShelters.filter(s => s.municipality === shelterMuniFilter);
 
   return (
     <div className="admin-container">
       {/* Top Banner */}
       <div className="admin-header glass-panel">
         <div>
-          <h2>Emergency Operations Command Center</h2>
-          <p className="text-muted">Real-time incident dispatch, triage analytics, and Lanao del Norte shelter readiness</p>
+          <h2>
+            Emergency Operations Command Center
+            {assignedMuniObj ? ` — ${assignedMuniObj.shortName}` : ''}
+          </h2>
+          <p className="text-muted">
+            {assignedMuniObj
+              ? `Exclusive municipal command hub for ${assignedMuniObj.name} incident dispatch, triage analytics, and shelter readiness`
+              : 'Real-time incident dispatch, triage analytics, and Lanao del Norte shelter readiness'}
+          </p>
         </div>
-        <div className="admin-badge-role">
-          <ShieldAlert size={18} className="text-red" />
-          <span>Admin Authorization Active</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          {assignedMuniObj && (
+            <div
+              className="admin-badge-role"
+              style={{
+                background: 'rgba(6, 182, 212, 0.14)',
+                borderColor: 'rgba(6, 182, 212, 0.45)',
+                color: '#7dd3fc'
+              }}
+            >
+              <Lock size={15} className="text-cyan" />
+              <span>Jurisdiction Locked: <strong>{assignedMuniObj.shortName}</strong></span>
+            </div>
+          )}
+          <div className="admin-badge-role">
+            <ShieldAlert size={18} className="text-red" />
+            <span>
+              Admin Authorization Active{currentUser?.username ? ` (@${currentUser.username})` : ''}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -196,7 +245,9 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
             <BarChart2 size={24} className="text-cyan" />
           </div>
           <div>
-            <span className="kpi-label">Total Reports</span>
+            <span className="kpi-label">
+              {assignedMuniObj ? `${assignedMuniObj.shortName} Reports` : 'Total Reports'}
+            </span>
             <h3 className="kpi-value">{totalIncidents}</h3>
           </div>
         </div>
@@ -237,7 +288,9 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
         {/* Left Navigation Sidebar */}
         <aside className="admin-nav-sidebar glass-panel">
           <div className="admin-sidebar-header">
-            <span className="admin-sidebar-kicker">COMMAND NAVIGATION</span>
+            <span className="admin-sidebar-kicker">
+              {assignedMuniObj ? `📍 ${assignedMuniObj.shortName.toUpperCase()} HUB` : 'COMMAND NAVIGATION'}
+            </span>
             <h4>Select Module</h4>
           </div>
 
@@ -252,7 +305,9 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
               </div>
               <div className="admin-nav-text">
                 <span className="admin-nav-title">CRUD Management</span>
-                <span className="admin-nav-sub">Citizen Incident Reports</span>
+                <span className="admin-nav-sub">
+                  {assignedMuniObj ? `${assignedMuniObj.shortName} Reports` : 'Citizen Incident Reports'}
+                </span>
               </div>
               <span className="admin-nav-badge">{totalIncidents}</span>
             </button>
@@ -269,7 +324,7 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
                 <span className="admin-nav-title">Evacuation Shelters</span>
                 <span className="admin-nav-sub">Safe Route Readiness (OSRM)</span>
               </div>
-              <span className="admin-nav-badge badge-emerald">{shelters.length}</span>
+              <span className="admin-nav-badge badge-emerald">{scopedShelters.length}</span>
             </button>
 
             <button
@@ -309,7 +364,9 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
               <strong className="text-xs text-emerald">{availableCots} / {totalShelterCapacity}</strong>
             </div>
             <div className="sidebar-stat-row">
-              <span className="text-xs text-dim">Provincial Occupancy</span>
+              <span className="text-xs text-dim">
+                {assignedMuniObj ? `${assignedMuniObj.shortName} Occupancy` : 'Provincial Occupancy'}
+              </span>
               <strong className="text-xs text-cyan">{occupancyPct}%</strong>
             </div>
             <button
@@ -341,8 +398,15 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
             <div className="table-card glass-panel">
               <div className="table-card-header">
                 <div>
-                  <h4>Citizen Incident Reports (CRUD Management)</h4>
-                  <p className="text-muted text-sm">Resolve active emergencies, update triage status, or purge false alarms</p>
+                  <h4>
+                    Citizen Incident Reports (CRUD Management)
+                    {assignedMuniObj ? ` — ${assignedMuniObj.shortName}` : ''}
+                  </h4>
+                  <p className="text-muted text-sm">
+                    {assignedMuniObj
+                      ? `Showing only emergency reports within your assigned jurisdiction (${assignedMuniObj.name})`
+                      : 'Resolve active emergencies, update triage status, or purge false alarms'}
+                  </p>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -378,7 +442,9 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
                     {filteredIncidents.length === 0 ? (
                       <tr>
                         <td colSpan={8} className="text-center py-8 text-muted">
-                          No incidents match this filter.
+                          {assignedMuniObj
+                            ? `No incidents currently reported in ${assignedMuniObj.shortName} matching this filter.`
+                            : 'No incidents match this filter.'}
                         </td>
                       </tr>
                     ) : (
@@ -470,36 +536,61 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
                   <Compass size={22} className="text-cyan pulse-icon" />
                   <div>
                     <div className="dispatch-title-row">
-                      <h4>Designated Evacuation Shelters & Safe Route Readiness</h4>
+                      <h4>
+                        Designated Evacuation Shelters & Safe Route Readiness
+                        {assignedMuniObj ? ` (${assignedMuniObj.shortName})` : ''}
+                      </h4>
                       <span className="api-chip-badge" style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', borderColor: 'rgba(16, 185, 129, 0.4)' }}>
                         API #5: OSRM Routing Engine
                       </span>
                     </div>
                     <p className="text-muted text-xs">
-                      Active Lanao del Norte emergency shelters, live occupancy capacities, and turn-by-turn road evacuation routes
+                      {assignedMuniObj
+                        ? `Emergency shelters and turn-by-turn OSRM evacuation routes strictly inside ${assignedMuniObj.name}`
+                        : 'Active Lanao del Norte emergency shelters, live occupancy capacities, and turn-by-turn road evacuation routes'}
                     </p>
                   </div>
                 </div>
 
                 <div className="dispatch-actions" style={{ flexWrap: 'wrap' }}>
-                  <select
-                    className="municipality-dropdown-select"
-                    style={{
-                      background: 'rgba(6, 182, 212, 0.1)',
-                      border: '1px solid rgba(6, 182, 212, 0.35)',
-                      padding: '6px 12px',
-                      borderRadius: '18px'
-                    }}
-                    value={shelterMuniFilter}
-                    onChange={(e) => setShelterMuniFilter(e.target.value)}
-                    title="Filter shelters by municipality"
-                  >
-                    {uniqueShelterMunicipalities.map(m => (
-                      <option key={m} value={m}>
-                        {m === 'All' ? `🌐 All Municipalities (${shelters.length})` : `📍 ${m}`}
-                      </option>
-                    ))}
-                  </select>
+                  {assignedMuniObj ? (
+                    <span
+                      style={{
+                        background: 'rgba(6, 182, 212, 0.14)',
+                        border: '1px solid rgba(6, 182, 212, 0.4)',
+                        color: '#7dd3fc',
+                        padding: '6px 12px',
+                        borderRadius: '18px',
+                        fontSize: '0.76rem',
+                        fontWeight: 600,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <Lock size={12} />
+                      <span>📍 {assignedMuniObj.shortName} ({filteredShelters.length} Shelter{filteredShelters.length === 1 ? '' : 's'})</span>
+                    </span>
+                  ) : (
+                    <select
+                      className="municipality-dropdown-select"
+                      style={{
+                        background: 'rgba(6, 182, 212, 0.1)',
+                        border: '1px solid rgba(6, 182, 212, 0.35)',
+                        padding: '6px 12px',
+                        borderRadius: '18px'
+                      }}
+                      value={shelterMuniFilter}
+                      onChange={(e) => setShelterMuniFilter(e.target.value)}
+                      title="Filter shelters by municipality"
+                    >
+                      {uniqueShelterMunicipalities.map(m => (
+                        <option key={m} value={m}>
+                          {m === 'All' ? `🌐 All Municipalities (${scopedShelters.length})` : `📍 ${m}`}
+                        </option>
+                      ))}
+                    </select>
+                  )}
 
                   <button
                     className="btn-refresh-dispatch"
@@ -514,8 +605,8 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
                     id="btn-trigger-drill"
                     className="btn-drill-dispatch"
                     style={{ background: 'linear-gradient(135deg, #06b6d4, #0284c7)', borderColor: 'rgba(6, 182, 212, 0.5)' }}
-                    onClick={() => handleSimulateRoute(filteredShelters[0] || shelters[0])}
-                    disabled={isSimulatingRoute || shelters.length === 0}
+                    onClick={() => handleSimulateRoute(filteredShelters[0] || scopedShelters[0])}
+                    disabled={isSimulatingRoute || filteredShelters.length === 0}
                   >
                     <Navigation size={14} className={isSimulatingRoute ? 'spin' : ''} />
                     <span>{isSimulatingRoute ? 'Routing...' : '🧭 Test Safe Road Route (OSRM)'}</span>
@@ -535,7 +626,7 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
               <div className="comms-kpi-strip">
                 <div className="comms-kpi-item">
                   <span className="comms-kpi-label">Active Evacuation Hubs</span>
-                  <span className="comms-kpi-val text-cyan">{filteredShelters.length} Shelters</span>
+                  <span className="comms-kpi-val text-cyan">{filteredShelters.length} Shelter{filteredShelters.length === 1 ? '' : 's'}</span>
                 </div>
                 <div className="comms-kpi-item">
                   <span className="comms-kpi-label">Total Cots Capacity</span>
@@ -546,7 +637,9 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
                   <span className="comms-kpi-val text-emerald">{availableCots} Available</span>
                 </div>
                 <div className="comms-kpi-item">
-                  <span className="comms-kpi-label">Overall Provincial Occupancy</span>
+                  <span className="comms-kpi-label">
+                    {assignedMuniObj ? `${assignedMuniObj.shortName} Occupancy` : 'Overall Provincial Occupancy'}
+                  </span>
                   <span className="comms-kpi-val text-amber">{occupancyPct}% ({totalOccupancy} Evacuees)</span>
                 </div>
               </div>
@@ -643,40 +736,50 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
               {/* Category Breakdown Chart */}
               <div className="chart-card glass-panel">
                 <div className="chart-header">
-                  <h4>Incident Distribution by Disaster Type</h4>
+                  <h4>
+                    Incident Distribution by Disaster Type
+                    {assignedMuniObj ? ` (${assignedMuniObj.shortName})` : ''}
+                  </h4>
                   <span className="text-dim text-sm">Automated by Gemini AI</span>
                 </div>
                 <div className="bar-chart-list">
-                  {Object.entries(categoryCounts).map(([category, count]) => {
-                    const pct = totalIncidents > 0 ? Math.round((count / totalIncidents) * 100) : 0;
-                    return (
-                      <div key={category} className="chart-bar-item">
-                        <div className="chart-bar-labels">
-                          <span className="category-title">{category}</span>
-                          <span className="category-count">{count} reports ({pct}%)</span>
+                  {Object.entries(categoryCounts).length === 0 ? (
+                    <p className="text-muted text-sm py-4">No incidents recorded in this jurisdiction yet.</p>
+                  ) : (
+                    Object.entries(categoryCounts).map(([category, count]) => {
+                      const pct = totalIncidents > 0 ? Math.round((count / totalIncidents) * 100) : 0;
+                      return (
+                        <div key={category} className="chart-bar-item">
+                          <div className="chart-bar-labels">
+                            <span className="category-title">{category}</span>
+                            <span className="category-count">{count} reports ({pct}%)</span>
+                          </div>
+                          <div className="progress-track">
+                            <div
+                              className="progress-fill"
+                              style={{
+                                width: `${pct}%`,
+                                backgroundColor: category === 'Flood' ? '#38bdf8' :
+                                                 category === 'Medical' ? '#f43f5e' :
+                                                 category === 'Fire' ? '#fb923c' :
+                                                 category === 'Rescue' ? '#a855f7' : '#06b6d4'
+                              }}
+                            />
+                          </div>
                         </div>
-                        <div className="progress-track">
-                          <div
-                            className="progress-fill"
-                            style={{
-                              width: `${pct}%`,
-                              backgroundColor: category === 'Flood' ? '#38bdf8' :
-                                               category === 'Medical' ? '#f43f5e' :
-                                               category === 'Fire' ? '#fb923c' :
-                                               category === 'Rescue' ? '#a855f7' : '#06b6d4'
-                            }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  )}
                 </div>
               </div>
 
               {/* Urgency Severity Gauge */}
               <div className="chart-card glass-panel">
                 <div className="chart-header">
-                  <h4>Urgency Severity Matrix</h4>
+                  <h4>
+                    Urgency Severity Matrix
+                    {assignedMuniObj ? ` (${assignedMuniObj.shortName})` : ''}
+                  </h4>
                   <span className="text-dim text-sm">Prioritization Queue</span>
                 </div>
                 <div className="urgency-matrix-grid">

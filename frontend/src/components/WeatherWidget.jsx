@@ -1,20 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import {
   CloudRain, Wind, AlertTriangle, Newspaper, RefreshCw,
-  MapPin, Sun, Cloud, Zap, Droplets, ExternalLink
+  MapPin, Sun, Cloud, Zap, Droplets, ExternalLink, Lock
 } from 'lucide-react';
-import { LANAO_DEL_NORTE_MUNICIPALITIES } from '../municipalities';
+import { LANAO_DEL_NORTE_MUNICIPALITIES, getMunicipalityById } from '../municipalities';
 import { API_BASE_URL } from '../config';
 
 export default function WeatherWidget({
   pinnedLocation,
   selectedMunicipality = 'ILIGAN',
+  lockedMunicipality = null,
   onSelectMunicipality
 }) {
+  const effectiveMuni = lockedMunicipality || (selectedMunicipality && selectedMunicipality !== 'ALL' ? selectedMunicipality : 'ILIGAN');
+
   const [weather, setWeather] = useState(null);
-  const [activeMuniId, setActiveMuniId] = useState(
-    selectedMunicipality && selectedMunicipality !== 'ALL' ? selectedMunicipality : 'ILIGAN'
-  );
+  const [activeMuniId, setActiveMuniId] = useState(effectiveMuni);
   const [usePinnedOverride, setUsePinnedOverride] = useState(false);
   const [locationLabel, setLocationLabel] = useState('Iligan City');
   const [isLoading, setIsLoading] = useState(true);
@@ -26,7 +27,7 @@ export default function WeatherWidget({
   const [isNewsLoading, setIsNewsLoading] = useState(true);
 
   const selectedMuniObj =
-    LANAO_DEL_NORTE_MUNICIPALITIES.find((m) => m.id === activeMuniId) ||
+    getMunicipalityById(lockedMunicipality || activeMuniId) ||
     LANAO_DEL_NORTE_MUNICIPALITIES.find((m) => m.id === 'ILIGAN') ||
     LANAO_DEL_NORTE_MUNICIPALITIES[0];
 
@@ -35,19 +36,64 @@ export default function WeatherWidget({
   const activeLng =
     usePinnedOverride && pinnedLocation?.lng ? pinnedLocation.lng : selectedMuniObj.lng;
 
+  // Direct browser Open-Meteo fallback if cloud backend is sleeping
+  const fetchOpenMeteoDirect = async (lat, lng) => {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m&timezone=Asia%2FManila`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const cur = data.current || {};
+    const temp = Math.round(cur.temperature_2m ?? 29);
+    const feels = Math.round(cur.apparent_temperature ?? 32);
+    const precip = cur.precipitation ?? 0;
+    const wind = Math.round(cur.wind_speed_10m ?? 12);
+    const hum = Math.round(cur.relative_humidity_2m ?? 76);
+    const code = cur.weather_code ?? 1;
+
+    let condition = 'Partly Cloudy';
+    let icon = 'cloud';
+    if (code >= 95) { condition = 'Thunderstorm'; icon = 'thunder'; }
+    else if (code >= 61 || precip > 2) { condition = 'Rain Showers'; icon = 'rain'; }
+    else if (code === 0) { condition = 'Clear Sky'; icon = 'sun'; }
+
+    return {
+      temperature: `${temp}°C`,
+      feels_like: `${feels}°C`,
+      condition,
+      condition_icon: icon,
+      wind_speed: `${wind} km/h`,
+      wind_direction: 'NE',
+      humidity: `${hum}%`,
+      precipitation: `${precip} mm/h`,
+      alert: precip > 5
+        ? { level: 'high', tag: 'FLOOD WATCH', message: 'Heavy rainfall detected. Monitor low-lying rivers and drainage channels.' }
+        : { level: 'low', tag: 'NORMAL CONDITIONS', message: 'Atmospheric conditions stable across the sector. Continue standard monitoring.' }
+    };
+  };
+
   // Fetch real-time live weather from backend endpoint (Open-Meteo API)
   const fetchWeather = async (lat, lng, label, showRefreshSpinner = false) => {
     if (showRefreshSpinner) setIsRefreshing(true);
     else setIsLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/weather?lat=${lat}&lng=${lng}`);
-      if (res.ok) {
-        const data = await res.json();
-        setWeather(data);
-        if (label) {
-          setLocationLabel(label);
+      let weatherData = null;
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/weather?lat=${lat}&lng=${lng}`);
+        const contentType = res.headers.get('content-type') || '';
+        if (res.ok && contentType.includes('application/json')) {
+          weatherData = await res.json();
         }
+      } catch {
+        // Fallback to direct Open-Meteo call below
+      }
+
+      if (!weatherData || !weatherData.temperature) {
+        weatherData = await fetchOpenMeteoDirect(lat, lng);
+      }
+
+      setWeather(weatherData);
+      if (label) {
+        setLocationLabel(label);
       }
     } catch (err) {
       console.warn('Weather fetch warning:', err.message);
@@ -62,11 +108,13 @@ export default function WeatherWidget({
     setIsNewsLoading(true);
     try {
       const res = await fetch(`${API_BASE_URL}/api/news`);
-      if (res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
         const data = await res.json();
         if (data.articles && data.articles.length > 0) {
           setNewsArticles(data.articles);
           if (data.source) setNewsSource(data.source);
+          return;
         }
       }
     } catch (err) {
@@ -76,13 +124,16 @@ export default function WeatherWidget({
     }
   };
 
-  // Sync when top Jurisdiction filter changes in App.jsx
+  // Sync when top Jurisdiction filter or Admin locked municipality changes in App.jsx
   useEffect(() => {
-    if (selectedMunicipality) {
+    if (lockedMunicipality) {
+      setUsePinnedOverride(false);
+      setActiveMuniId(lockedMunicipality);
+    } else if (selectedMunicipality) {
       setUsePinnedOverride(false);
       setActiveMuniId(selectedMunicipality);
     }
-  }, [selectedMunicipality]);
+  }, [selectedMunicipality, lockedMunicipality]);
 
   // Re-fetch weather whenever user clicks or drops a pin on the map
   useEffect(() => {
@@ -105,7 +156,7 @@ export default function WeatherWidget({
         Boolean(weather)
       );
     }
-  }, [activeMuniId, usePinnedOverride]);
+  }, [activeMuniId, lockedMunicipality, usePinnedOverride]);
 
   // Fetch live disaster news on initial load
   useEffect(() => {
@@ -113,6 +164,7 @@ export default function WeatherWidget({
   }, []);
 
   const handleMunicipalityChange = (e) => {
+    if (lockedMunicipality) return;
     const newId = e.target.value;
     if (newId === 'PINNED') {
       setUsePinnedOverride(true);
@@ -180,23 +232,30 @@ export default function WeatherWidget({
 
         {/* Municipality / City Dropdown Selector inside Live Weather Radar */}
         <div className="weather-location-chip weather-dropdown-chip" title={locationLabel}>
-          <MapPin size={13} className="text-cyan" />
+          {lockedMunicipality ? <Lock size={13} className="text-cyan" /> : <MapPin size={13} className="text-cyan" />}
           <select
             id="weather-radar-municipality-dropdown"
             className="weather-muni-select"
-            value={usePinnedOverride && pinnedLocation?.lat ? 'PINNED' : activeMuniId}
+            value={usePinnedOverride && pinnedLocation?.lat ? 'PINNED' : (lockedMunicipality || activeMuniId)}
             onChange={handleMunicipalityChange}
+            disabled={Boolean(lockedMunicipality)}
           >
             {usePinnedOverride && pinnedLocation?.lat && (
               <option value="PINNED">
                 📌 Pinned: {locationLabel}
               </option>
             )}
-            {LANAO_DEL_NORTE_MUNICIPALITIES.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.id === 'ALL' ? '🌐 All Lanao del Norte (Provincial Radar)' : `📍 ${m.name}`}
+            {lockedMunicipality ? (
+              <option value={selectedMuniObj.id}>
+                🔒 {selectedMuniObj.name} (Admin Jurisdiction)
               </option>
-            ))}
+            ) : (
+              LANAO_DEL_NORTE_MUNICIPALITIES.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.id === 'ALL' ? '🌐 All Lanao del Norte (Provincial Radar)' : `📍 ${m.name}`}
+                </option>
+              ))
+            )}
           </select>
           {weather?.cached && <span className="cache-pill">Cached</span>}
         </div>

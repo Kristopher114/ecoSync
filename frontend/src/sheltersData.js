@@ -403,3 +403,4 @@ export async function calculateDirectOsrmRoute(startLat, startLng, destLat = nul
     is_fallback: true
   };
 }
+

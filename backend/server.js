@@ -3,7 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 const supabase = require('./supabase');
 const { analyzeIncidentDescription } = require('./gemini');
-const { registerUser, loginUser } = require('./userAuth');
+const { registerUser, loginUser, purgeUnassignedAdmins } = require('./userAuth');
 const { getLiveWeather } = require('./weather');
 const { getLiveDisasterNews } = require('./news');
 const { dispatchVolunteerAlert, getDispatchLogs } = require('./comms');
@@ -36,12 +36,12 @@ app.get('/api/status', (req, res) => {
 
 // --- AUTHENTICATION ROUTES (Username-based) ---
 
-// 1. Register a new user
+// 1. Register a new user (Admin requires a specific Municipality / City jurisdiction)
 app.post('/api/auth/register', async (req, res) => {
-  const { username, email, password, role } = req.body;
+  const { username, email, password, role, municipality, municipality_name } = req.body;
   const userIdentifier = username || email;
 
-  const result = await registerUser(userIdentifier, password, role);
+  const result = await registerUser(userIdentifier, password, role, municipality, municipality_name);
 
   if (result.error) {
     return res.status(400).json({ error: result.error });
@@ -51,6 +51,16 @@ app.post('/api/auth/register', async (req, res) => {
     message: 'User registered successfully!',
     user: result.user
   });
+});
+
+// Purge any legacy admin accounts that lack a specific municipality assignment
+app.post('/api/auth/purge-unassigned-admins', async (req, res) => {
+  try {
+    const result = await purgeUnassignedAdmins(req.body?.username || null);
+    res.status(200).json({ message: 'Unassigned admin accounts removed.', ...result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // 2. Login an existing user

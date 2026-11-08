@@ -9,7 +9,11 @@ import {
   ShieldAlert, Lock, UserPlus, Radio, CheckCircle2, X,
   Calendar, Clock, Filter, MapPin
 } from 'lucide-react';
-import { LANAO_DEL_NORTE_MUNICIPALITIES } from './municipalities';
+import {
+  LANAO_DEL_NORTE_MUNICIPALITIES,
+  getMunicipalityById,
+  doesIncidentBelongToMunicipality
+} from './municipalities';
 import { API_BASE_URL } from './config';
 import './App.css';
 
@@ -20,15 +24,44 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const saved = localStorage.getItem('ecosync_user');
-      return saved ? JSON.parse(saved) : null;
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+
+      // Migrate built-in demo admins or remove any admin account that has no municipality assigned
+      if (parsed && parsed.role === 'admin') {
+        const uname = (parsed.username || '').toLowerCase();
+        if (uname === 'admin_iligan' && !parsed.municipality) {
+          parsed.municipality = 'ILIGAN';
+          parsed.municipality_name = 'Iligan City';
+          localStorage.setItem('ecosync_user', JSON.stringify(parsed));
+          return parsed;
+        }
+        if (uname === 'admin_kapatagan' && !parsed.municipality) {
+          parsed.municipality = 'KAPATAGAN';
+          parsed.municipality_name = 'Kapatagan';
+          localStorage.setItem('ecosync_user', JSON.stringify(parsed));
+          return parsed;
+        }
+        if (!parsed.municipality || parsed.municipality === 'ALL') {
+          // Remove any registered admin account that has no municipality jurisdiction
+          localStorage.removeItem('ecosync_user');
+          return null;
+        }
+      }
+      return parsed;
     } catch {
       return null;
     }
   });
 
+  const isAdmin = currentUser?.role === 'admin';
+  const adminMunicipality = isAdmin && currentUser?.municipality && currentUser.municipality !== 'ALL'
+    ? currentUser.municipality
+    : null;
+
   const [incidents, setIncidents] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [selectedMunicipality, setSelectedMunicipality] = useState('ALL');
+  const [selectedMunicipality, setSelectedMunicipality] = useState(() => adminMunicipality || 'ALL');
   const [dateFilter, setDateFilter] = useState('today'); // 'today' | '24h' | 'custom' | 'all'
   const [selectedCustomDate, setSelectedCustomDate] = useState(() => {
     const now = new Date();
@@ -44,13 +77,32 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeBroadcastAlert, setActiveBroadcastAlert] = useState(null);
 
+  // Sync selectedMunicipality whenever an Admin logs in or logs out
+  useEffect(() => {
+    if (adminMunicipality) {
+      setSelectedMunicipality(adminMunicipality);
+    }
+  }, [adminMunicipality]);
+
+  // Purge any unassigned admin accounts from backend on startup
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/api/auth/purge-unassigned-admins`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    }).catch(() => {});
+  }, []);
+
   // Fetch all incidents from Node.js Express backend
   const fetchIncidents = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/incidents`);
-      if (res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
         const data = await res.json();
-        setIncidents(data);
+        if (Array.isArray(data)) {
+          setIncidents(data);
+        }
       }
     } catch (err) {
       console.warn('Backend connection issue or starting up:', err.message);
@@ -116,6 +168,9 @@ export default function App() {
   const handleAuthSuccess = (userObj) => {
     setCurrentUser(userObj);
     if (userObj.role === 'admin') {
+      if (userObj.municipality) {
+        setSelectedMunicipality(userObj.municipality);
+      }
       setActiveTab('admin');
     }
   };
@@ -123,6 +178,7 @@ export default function App() {
   const handleSignOut = () => {
     localStorage.removeItem('ecosync_user');
     setCurrentUser(null);
+    setSelectedMunicipality('ALL');
     setActiveTab('map');
   };
 
@@ -153,12 +209,19 @@ export default function App() {
     return `${y}-${m}-${day}` === targetYMD;
   };
 
-  // Compute landmark counts for daily reset analytics
-  const todayCount = incidents.filter(i => isDateToday(i.created_at)).length;
-  const pastDaysCount = incidents.length - todayCount;
+  const effectiveMunicipality = adminMunicipality || selectedMunicipality;
+  const activeMunicipalityObj = getMunicipalityById(effectiveMunicipality);
+
+  // First scope incidents to the Admin's assigned municipality if an Admin is logged in
+  const jurisdictionScopedIncidents = adminMunicipality
+    ? incidents.filter(inc => doesIncidentBelongToMunicipality(inc, adminMunicipality))
+    : incidents;
+
+  // Compute landmark counts for daily reset analytics (scoped to Admin jurisdiction if Admin)
+  const todayCount = jurisdictionScopedIncidents.filter(i => isDateToday(i.created_at)).length;
 
   // Filter incidents by date window
-  const dateFilteredIncidents = incidents.filter(inc => {
+  const dateFilteredIncidents = jurisdictionScopedIncidents.filter(inc => {
     if (dateFilter === 'all') return true;
     if (!inc.created_at) return true;
 
@@ -168,26 +231,15 @@ export default function App() {
     return true;
   });
 
-  const activeMunicipalityObj = LANAO_DEL_NORTE_MUNICIPALITIES.find(m => m.id === selectedMunicipality) || LANAO_DEL_NORTE_MUNICIPALITIES[0];
-
-  // Filter by category first
+  // Filter by category
   const categoryFilteredIncidents = selectedCategory === 'All'
     ? dateFilteredIncidents
     : dateFilteredIncidents.filter(inc => inc.category === selectedCategory);
 
   // Filter by Municipality / Jurisdiction
-  const displayedIncidents = selectedMunicipality === 'ALL'
+  const displayedIncidents = effectiveMunicipality === 'ALL'
     ? categoryFilteredIncidents
-    : categoryFilteredIncidents.filter(inc => {
-        if (!activeMunicipalityObj || !activeMunicipalityObj.keywords || activeMunicipalityObj.keywords.length === 0) return true;
-        const loc = (inc.location_name || '').toLowerCase();
-        const title = (inc.title || '').toLowerCase();
-        const desc = (inc.description || '').toLowerCase();
-        return activeMunicipalityObj.keywords.some(kw => {
-          const k = kw.toLowerCase();
-          return loc.includes(k) || title.includes(k) || desc.includes(k);
-        });
-      });
+    : categoryFilteredIncidents.filter(inc => doesIncidentBelongToMunicipality(inc, effectiveMunicipality));
 
   const todayFormatted = new Date().toLocaleDateString('en-US', {
     weekday: 'short',
@@ -195,8 +247,6 @@ export default function App() {
     day: 'numeric',
     year: 'numeric'
   });
-
-  const isAdmin = currentUser?.role === 'admin';
 
   return (
     <div className="app-layout">
@@ -240,11 +290,24 @@ export default function App() {
             <div className="map-top-info-bar glass-panel">
               <div className="map-top-info-left">
                 <span className="map-info-status">
-                  📍 <strong>{activeMunicipalityObj.shortName || activeMunicipalityObj.name}</strong> • 📅 {dateFilter === 'today' ? "Today's Landmarks (Daily Reset Active)" : dateFilter === '24h' ? "Past 24 Hours" : dateFilter === 'custom' ? `Date: ${selectedCustomDate}` : "All Historical"} ({displayedIncidents.length} active)
+                  {adminMunicipality ? (
+                    <>
+                      🔒 <strong>Admin Map Locked: {activeMunicipalityObj.name}</strong>
+                    </>
+                  ) : (
+                    <>
+                      📍 <strong>{activeMunicipalityObj.shortName || activeMunicipalityObj.name}</strong>
+                    </>
+                  )}{' '}
+                  • 📅 {dateFilter === 'today' ? "Today's Landmarks (Daily Reset Active)" : dateFilter === '24h' ? "Past 24 Hours" : dateFilter === 'custom' ? `Date: ${selectedCustomDate}` : "All Historical"} ({displayedIncidents.length} active)
                 </span>
               </div>
               <div className="map-top-info-right">
-                <span className="map-info-hint">💡 Click map or incident for OSRM safe route</span>
+                <span className="map-info-hint">
+                  {adminMunicipality
+                    ? `🛡️ Locked to ${activeMunicipalityObj.shortName} Jurisdiction`
+                    : '💡 Click map or incident for OSRM safe route'}
+                </span>
               </div>
             </div>
 
@@ -252,7 +315,8 @@ export default function App() {
               incidents={displayedIncidents}
               selectedCategory={selectedCategory}
               dateFilter={dateFilter}
-              selectedMunicipality={selectedMunicipality}
+              selectedMunicipality={effectiveMunicipality}
+              lockedMunicipality={adminMunicipality}
               targetLocation={activeMunicipalityObj}
               onMapClick={handleMapClick}
               selectedIncident={selectedIncident}
@@ -267,21 +331,42 @@ export default function App() {
               {/* Jurisdiction & Category Filter Pills */}
               <div className="filter-bar glass-panel">
                 <div className="municipality-select-wrap">
-                  <MapPin size={14} className="text-cyan" />
-                  <span className="filter-group-label">Jurisdiction:</span>
-                  <select
-                    id="municipality-dropdown-filter"
-                    className="municipality-dropdown-select"
-                    value={selectedMunicipality}
-                    onChange={(e) => setSelectedMunicipality(e.target.value)}
-                    title="Filter emergencies and navigate map across Lanao del Norte municipalities"
-                  >
-                    {LANAO_DEL_NORTE_MUNICIPALITIES.map(m => (
-                      <option key={m.id} value={m.id}>
-                        {m.name}
+                  {adminMunicipality ? (
+                    <Lock size={14} className="text-cyan" />
+                  ) : (
+                    <MapPin size={14} className="text-cyan" />
+                  )}
+                  <span className="filter-group-label">
+                    {adminMunicipality ? 'Assigned Jurisdiction:' : 'Jurisdiction:'}
+                  </span>
+                  {adminMunicipality ? (
+                    <select
+                      id="municipality-dropdown-filter"
+                      className="municipality-dropdown-select"
+                      value={adminMunicipality}
+                      disabled
+                      title={`Your Admin account is locked exclusively to ${activeMunicipalityObj.name}`}
+                      style={{ opacity: 0.95, cursor: 'not-allowed', borderColor: 'rgba(6, 182, 212, 0.5)' }}
+                    >
+                      <option value={activeMunicipalityObj.id}>
+                        🔒 {activeMunicipalityObj.name} (Admin Locked)
                       </option>
-                    ))}
-                  </select>
+                    </select>
+                  ) : (
+                    <select
+                      id="municipality-dropdown-filter"
+                      className="municipality-dropdown-select"
+                      value={selectedMunicipality}
+                      onChange={(e) => setSelectedMunicipality(e.target.value)}
+                      title="Filter emergencies and navigate map across Lanao del Norte municipalities"
+                    >
+                      {LANAO_DEL_NORTE_MUNICIPALITIES.map(m => (
+                        <option key={m.id} value={m.id}>
+                          {m.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
 
                 <div className="filter-divider" />
@@ -337,7 +422,7 @@ export default function App() {
                     title="Show all landmarks across all dates"
                   >
                     <span>🌐 All Time</span>
-                    <span className="count-badge">{incidents.length}</span>
+                    <span className="count-badge">{jurisdictionScopedIncidents.length}</span>
                   </button>
 
                   <div className="date-picker-wrap">
@@ -366,8 +451,13 @@ export default function App() {
               </div>
             </div>
             <WeatherWidget
-              selectedMunicipality={selectedMunicipality}
-              onSelectMunicipality={(muniId) => setSelectedMunicipality(muniId)}
+              selectedMunicipality={effectiveMunicipality}
+              lockedMunicipality={adminMunicipality}
+              onSelectMunicipality={(muniId) => {
+                if (!adminMunicipality) {
+                  setSelectedMunicipality(muniId);
+                }
+              }}
               pinnedLocation={
                 selectedIncident
                   ? {
@@ -391,9 +481,11 @@ export default function App() {
         <main>
           {isAdmin ? (
             <AdminDashboard
-              incidents={incidents}
+              incidents={jurisdictionScopedIncidents}
               onUpdateStatus={handleUpdateStatus}
               onDeleteIncident={handleDeleteIncident}
+              assignedMunicipality={adminMunicipality}
+              currentUser={currentUser}
             />
           ) : (
             <div className="admin-access-locked glass-panel">
