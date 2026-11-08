@@ -26,7 +26,7 @@ app.use(express.json());
 
 // Basic Route
 app.get('/', (req, res) => {
-  res.send('EcoSync Backend is running!');
+  res.send('EcoLanao Backend is running!');
 });
 
 // API Routes

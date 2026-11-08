@@ -83,7 +83,7 @@ async function sendOutboundEmail({ to, subject, html, text }) {
       });
 
       const info = await transporter.sendMail({
-        from: `"EcoSync Disaster Dispatch" <${smtpUser}>`,
+        from: `"EcoLanao Disaster Dispatch" <${smtpUser}>`,
         to: to,
         subject: subject,
         text: text,
@@ -107,7 +107,7 @@ async function sendOutboundEmail({ to, subject, html, text }) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          from: 'EcoSync Alerts <onboarding@resend.dev>',
+          from: 'EcoLanao Alerts <onboarding@resend.dev>',
           to: [to],
           subject: subject,
           html: html,
@@ -157,7 +157,7 @@ function buildAlertHtml(alertRecord, incident) {
           <table width="100%">
             <tr>
               <td>
-                <h2 style="margin:0;color:#f8fafc;font-size:20px;letter-spacing:0.5px;">🛡️ EcoSync Disaster Operations</h2>
+                <h2 style="margin:0;color:#f8fafc;font-size:20px;letter-spacing:0.5px;">🛡️ EcoLanao Disaster Operations</h2>
                 <p style="margin:4px 0 0;color:#94a3b8;font-size:12px;">Automated Emergency Dispatch & Volunteer Coordinator</p>
               </td>
               <td align="right">
@@ -170,7 +170,7 @@ function buildAlertHtml(alertRecord, incident) {
       <tr>
         <td style="padding:24px;">
           <h3 style="margin:0 0 8px;color:#ffffff;font-size:18px;">${alertRecord.incident_title}</h3>
-          <p style="margin:0 0 18px;color:#94a3b8;font-size:14px;line-height:1.5;">${incident.description || 'Emergency incident reported on EcoSync network.'}</p>
+          <p style="margin:0 0 18px;color:#94a3b8;font-size:14px;line-height:1.5;">${incident.description || 'Emergency incident reported on EcoLanao network.'}</p>
           
           <table width="100%" style="background:#1e293b;border-radius:8px;padding:12px;margin-bottom:18px;">
             <tr>
@@ -198,7 +198,7 @@ function buildAlertHtml(alertRecord, incident) {
 
           <div style="border-top:1px solid #334155;padding-top:14px;">
             <p style="margin:0;color:#64748b;font-size:11px;line-height:1.4;">
-              This confirmation was automatically generated because this email was entered as the reporter contact on EcoSync. Emergency response units have been mobilized to the designated coordinates.
+              This confirmation was automatically generated because this email was entered as the reporter contact on EcoLanao. Emergency response units have been mobilized to the designated coordinates.
             </p>
           </div>
         </td>
@@ -241,8 +241,8 @@ async function dispatchVolunteerAlert(incident) {
   let emailDeliveryResult = null;
   const targetEmail = incident.reporter_email;
   if (targetEmail && targetEmail.includes('@') && !targetEmail.includes('anonymous@')) {
-    const subject = `🚨 [EcoSync ${dispatchId}] ${incident.urgency.toUpperCase()} ALARM: ${incident.title || 'Emergency Report'}`;
-    const text = `EcoSync Emergency Broadcast ${dispatchId}\n\nTitle: ${incident.title}\nCategory: ${incident.category}\nUrgency: ${incident.urgency}\nLocation: ${alertRecord.location}\nSquad Alerted: ${alertRecord.recipient_group}\n\nEmergency dispatch units have been notified.`;
+    const subject = `🚨 [EcoLanao ${dispatchId}] ${incident.urgency.toUpperCase()} ALARM: ${incident.title || 'Emergency Report'}`;
+    const text = `EcoLanao Emergency Broadcast ${dispatchId}\n\nTitle: ${incident.title}\nCategory: ${incident.category}\nUrgency: ${incident.urgency}\nLocation: ${alertRecord.location}\nSquad Alerted: ${alertRecord.recipient_group}\n\nEmergency dispatch units have been notified.`;
     const html = buildAlertHtml(alertRecord, incident);
 
     emailDeliveryResult = await sendOutboundEmail({

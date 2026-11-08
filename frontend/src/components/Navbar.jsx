@@ -37,7 +37,7 @@ export default function Navbar({
             <span className="radar-pulse"></span>
           </div>
           <div>
-            <h1 className="logo-title">EcoSync</h1>
+            <h1 className="logo-title">EcoLanao</h1>
             <span className="logo-subtitle">
               {adminMuniLabel ? `🔒 ${adminMuniLabel}` : 'Disaster & Relief Coordinator'}
             </span>

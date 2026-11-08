@@ -183,7 +183,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
         <div className="modal-header-compact">
           <div className="modal-title-wrapper">
             <Lock className="text-cyan" size={18} />
-            <h3>{isLoginMode ? 'Sign In to EcoSync' : 'Create an Account'}</h3>
+            <h3>{isLoginMode ? 'Sign In to EcoLanao' : 'Create an Account'}</h3>
           </div>
           <button id="auth-modal-close-btn" className="icon-close-btn" onClick={onClose}>
             <X size={18} />
