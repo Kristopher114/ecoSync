@@ -443,6 +443,7 @@ export default function App() {
               onToggleExpandMap={() => setIsMapExpanded(prev => !prev)}
               currentUser={currentUser}
               onVolunteerIncident={handleVolunteerIncident}
+              onAddShelter={handleAddShelter}
             />
           </section>
 

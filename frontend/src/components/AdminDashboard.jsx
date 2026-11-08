@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import L from 'leaflet';
 import {
   ShieldAlert, CheckCircle, Clock, Trash2, Edit3,
   BarChart2, AlertTriangle, RefreshCw, CheckCircle2,
@@ -37,86 +38,122 @@ export default function AdminDashboard({
   const [shelters, setShelters] = useState(EVACUATION_SHELTERS);
   const effectiveShelters = externalShelters && externalShelters.length > 0 ? externalShelters : shelters;
 
-  // Add Evacuation Shelter Modal & Form State
+  // Interactive Shelter Map Placement State
   const defaultMuniShort = assignedMuniObj ? assignedMuniObj.shortName : 'Kapatagan';
   const defaultLat = assignedMuniObj ? assignedMuniObj.lat : 7.9001;
   const defaultLng = assignedMuniObj ? assignedMuniObj.lng : 123.7692;
 
+  const pickerMapContainerRef = useRef(null);
+  const pickerMapInstanceRef = useRef(null);
+  const droppedPinMarkerRef = useRef(null);
+
   const [isAddShelterOpen, setIsAddShelterOpen] = useState(false);
+  const [clickedSpot, setClickedSpot] = useState(null); // { lat, lng, address }
+  const [newShelterName, setNewShelterName] = useState('');
+  const [newShelterCapacity, setNewShelterCapacity] = useState(500);
   const [isSubmittingShelter, setIsSubmittingShelter] = useState(false);
-  const [shelterFormError, setShelterFormError] = useState('');
-  const [shelterFormSuccess, setShelterFormSuccess] = useState('');
-  const [shelterForm, setShelterForm] = useState({
-    name: '',
-    municipality: defaultMuniShort,
-    type: 'Primary Regional Evacuation Center',
-    address: '',
-    latitude: defaultLat,
-    longitude: defaultLng,
-    total_capacity: 500,
-    current_occupancy: 0,
-    elevation: 'Elevated High Ground (Zero Flood Risk)',
-    amenities: 'Backup Generator, Clean Water Filtration, First Aid Station, Emergency Power',
-    contact: '+63 917 882 1400'
-  });
+  const [shelterToast, setShelterToast] = useState('');
 
-  const handleMuniChange = (muniShortName) => {
-    const found = SPECIFIC_MUNICIPALITIES.find(m => m.shortName === muniShortName || m.id === muniShortName || m.name.includes(muniShortName));
-    setShelterForm(prev => ({
-      ...prev,
-      municipality: found ? found.shortName : muniShortName,
-      latitude: found ? found.lat : prev.latitude,
-      longitude: found ? found.lng : prev.longitude
-    }));
-  };
+  // Initialize Interactive Shelter Placement Map when opened
+  useEffect(() => {
+    if (!isAddShelterOpen || !pickerMapContainerRef.current) return;
 
-  const handleAutoFillCoords = () => {
-    const found = SPECIFIC_MUNICIPALITIES.find(
-      m => m.shortName === shelterForm.municipality || m.id === shelterForm.municipality || m.name.includes(shelterForm.municipality)
-    );
-    if (found) {
-      setShelterForm(prev => ({
-        ...prev,
-        latitude: found.lat,
-        longitude: found.lng
-      }));
-    }
-  };
+    const timer = setTimeout(() => {
+      if (!pickerMapContainerRef.current) return;
 
-  const handleCreateShelter = async (e) => {
+      if (pickerMapInstanceRef.current) {
+        pickerMapInstanceRef.current.remove();
+        pickerMapInstanceRef.current = null;
+      }
+
+      const map = L.map(pickerMapContainerRef.current, {
+        center: [defaultLat, defaultLng],
+        zoom: 13,
+        zoomControl: true
+      });
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+      }).addTo(map);
+
+      // Render existing shelters in this municipality so Admin clearly sees which spots are covered vs empty
+      scopedShelters.forEach(s => {
+        const existingIcon = L.divIcon({
+          className: 'existing-shelter-badge-icon',
+          html: `<div style="background: linear-gradient(135deg, #10b981, #059669); color: white; width: 26px; height: 26px; border-radius: 8px; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 13px; box-shadow: 0 2px 8px rgba(0,0,0,0.4);" title="${s.name}">🛡️</div>`,
+          iconSize: [26, 26],
+          iconAnchor: [13, 13]
+        });
+        L.marker([s.latitude, s.longitude], { icon: existingIcon })
+          .bindPopup(`<strong>${s.name}</strong><br/><span style="font-size:11px; color:#64748b;">${s.address}</span><br/><span style="color:#059669; font-weight:bold;">${s.total_capacity} Cots</span>`)
+          .addTo(map);
+      });
+
+      // Click on any empty spot on the map to drop a pin
+      map.on('click', async (e) => {
+        const { lat, lng } = e.latlng;
+
+        const pinHtml = `<div style="background: linear-gradient(135deg, #06b6d4, #0284c7); color: white; width: 34px; height: 34px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid white; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 16px rgba(6,182,212,0.9);"><span style="transform: rotate(45deg); font-size: 15px;">📍</span></div>`;
+        const pinIcon = L.divIcon({
+          className: 'dropped-pin-icon',
+          html: pinHtml,
+          iconSize: [34, 34],
+          iconAnchor: [17, 34]
+        });
+
+        if (droppedPinMarkerRef.current) {
+          droppedPinMarkerRef.current.setLatLng([lat, lng]);
+        } else {
+          droppedPinMarkerRef.current = L.marker([lat, lng], { icon: pinIcon }).addTo(map);
+        }
+
+        let resolvedAddress = `${defaultMuniShort}, Lanao del Norte`;
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+          const data = await res.json();
+          if (data && data.display_name) {
+            resolvedAddress = data.display_name.split(', ').slice(0, 3).join(', ');
+          }
+        } catch {
+          // fallback
+        }
+
+        setClickedSpot({ lat, lng, address: resolvedAddress });
+        setNewShelterName(`${resolvedAddress} Evacuation Center`);
+      });
+
+      map.invalidateSize();
+      pickerMapInstanceRef.current = map;
+    }, 120);
+
+    return () => {
+      clearTimeout(timer);
+      if (pickerMapInstanceRef.current) {
+        pickerMapInstanceRef.current.remove();
+        pickerMapInstanceRef.current = null;
+      }
+      droppedPinMarkerRef.current = null;
+    };
+  }, [isAddShelterOpen, defaultLat, defaultLng, scopedShelters.length]);
+
+  const handleConfirmCreateShelter = async (e) => {
     e.preventDefault();
-    setShelterFormError('');
-    setShelterFormSuccess('');
-
-    if (!shelterForm.name.trim()) {
-      setShelterFormError('Please enter a Shelter Name.');
-      return;
-    }
-    const lat = parseFloat(shelterForm.latitude);
-    const lng = parseFloat(shelterForm.longitude);
-    if (isNaN(lat) || isNaN(lng)) {
-      setShelterFormError('Please enter valid Latitude and Longitude coordinates.');
-      return;
-    }
+    if (!clickedSpot || !newShelterName.trim()) return;
 
     setIsSubmittingShelter(true);
     try {
-      const amenitiesArr = typeof shelterForm.amenities === 'string'
-        ? shelterForm.amenities.split(',').map(s => s.trim()).filter(Boolean)
-        : shelterForm.amenities;
-
       const newSiteData = {
-        name: shelterForm.name.trim(),
-        municipality: shelterForm.municipality,
-        type: shelterForm.type,
-        address: shelterForm.address.trim() || `${shelterForm.municipality}, Lanao del Norte`,
-        latitude: lat,
-        longitude: lng,
-        total_capacity: parseInt(shelterForm.total_capacity, 10) || 500,
-        current_occupancy: parseInt(shelterForm.current_occupancy, 10) || 0,
-        elevation: shelterForm.elevation,
-        amenities: amenitiesArr,
-        contact: shelterForm.contact.trim() || '+63 917 882 1400',
+        name: newShelterName.trim(),
+        municipality: defaultMuniShort,
+        type: 'Primary Regional Evacuation Center',
+        address: clickedSpot.address || `${defaultMuniShort}, Lanao del Norte`,
+        latitude: clickedSpot.lat,
+        longitude: clickedSpot.lng,
+        total_capacity: parseInt(newShelterCapacity, 10) || 500,
+        current_occupancy: 0,
+        elevation: 'Elevated High Ground (Zero Flood Risk)',
+        amenities: ['Emergency Power', 'Clean Water Filtration', 'First Aid Station', 'Relief Rations'],
+        contact: '+63 917 882 1400',
         created_by: currentUser?.username || 'Admin Coordinator'
       };
 
@@ -124,38 +161,36 @@ export default function AdminDashboard({
         await onAddShelter(newSiteData);
       }
 
-      setShelterFormSuccess(`✅ Evacuation Center "${shelterForm.name}" created and synced with OSRM Navigation!`);
-      setTimeout(() => {
-        setIsAddShelterOpen(false);
-        setShelterFormSuccess('');
-        setShelterForm({
-          name: '',
-          municipality: defaultMuniShort,
-          type: 'Primary Regional Evacuation Center',
-          address: '',
-          latitude: defaultLat,
-          longitude: defaultLng,
-          total_capacity: 500,
-          current_occupancy: 0,
-          elevation: 'Elevated High Ground (Zero Flood Risk)',
-          amenities: 'Backup Generator, Clean Water Filtration, First Aid Station, Emergency Power',
-          contact: '+63 917 882 1400'
+      setShelterToast(`✅ Evacuation Center "${newShelterName.trim()}" created! OSRM Navigation is now active.`);
+      setTimeout(() => setShelterToast(''), 6000);
+
+      // Add green icon on the picker map for immediate feedback
+      if (pickerMapInstanceRef.current) {
+        const newGreenIcon = L.divIcon({
+          className: 'existing-shelter-badge-icon',
+          html: `<div style="background: linear-gradient(135deg, #10b981, #059669); color: white; width: 26px; height: 26px; border-radius: 8px; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 13px; box-shadow: 0 2px 8px rgba(0,0,0,0.4);">🛡️</div>`,
+          iconSize: [26, 26],
+          iconAnchor: [13, 13]
         });
-      }, 1400);
+        L.marker([clickedSpot.lat, clickedSpot.lng], { icon: newGreenIcon })
+          .bindPopup(`<strong>${newShelterName.trim()}</strong><br/>Capacity: ${newSiteData.total_capacity}`)
+          .addTo(pickerMapInstanceRef.current);
+      }
+
+      if (droppedPinMarkerRef.current && pickerMapInstanceRef.current) {
+        pickerMapInstanceRef.current.removeLayer(droppedPinMarkerRef.current);
+        droppedPinMarkerRef.current = null;
+      }
+      setClickedSpot(null);
+      setNewShelterName('');
     } catch (err) {
-      setShelterFormError(err.message || 'Failed to create evacuation center');
+      alert(`Error saving shelter: ${err.message}`);
     } finally {
       setIsSubmittingShelter(false);
     }
   };
-  const [isLoadingShelters, setIsLoadingShelters] = useState(false);
-  const [isSimulatingRoute, setIsSimulatingRoute] = useState(false);
-  const [routeToast, setRouteToast] = useState('');
-  const [isResettingDaily, setIsResettingDaily] = useState(false);
-  const [resetToast, setResetToast] = useState('');
 
-  // Scope incidents and shelters strictly to the Admin's assigned municipality jurisdiction
-  const scopedIncidents = assignedMuniObj
+    const scopedIncidents = assignedMuniObj
     ? incidents.filter(inc => doesIncidentBelongToMunicipality(inc, assignedMuniObj.id))
     : incidents;
 
@@ -760,9 +795,9 @@ export default function AdminDashboard({
                 </div>
               )}
 
-              {/* ADD EVACUATION SHELTER PANEL */}
+              {/* INTERACTIVE SHELTER PLACEMENT MAP PANEL */}
               {isAddShelterOpen && (
-                <div className="add-shelter-panel glass-panel" style={{
+                <div className="add-shelter-map-panel glass-panel" style={{
                   background: 'rgba(15, 23, 42, 0.95)',
                   border: '1px solid rgba(6, 182, 212, 0.4)',
                   borderRadius: '12px',
@@ -772,215 +807,128 @@ export default function AdminDashboard({
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <PlusCircle size={18} className="text-cyan" />
+                      <MapPin size={20} className="text-cyan pulse-icon" />
                       <div>
-                        <h4 style={{ margin: 0, fontSize: '0.96rem', fontWeight: 800, color: '#f8fafc' }}>
-                          Add New Designated Evacuation Shelter (OSRM-Integrated)
+                        <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#f8fafc' }}>
+                          Interactive Shelter Placement Map ({assignedMuniObj ? assignedMuniObj.shortName : 'Lanao del Norte'})
                         </h4>
-                        <p style={{ margin: 0, fontSize: '0.72rem', color: '#94a3b8' }}>
-                          Real-time road routing, capacity tracking & Leaflet map pin synchronization
+                        <p style={{ margin: '2px 0 0 0', fontSize: '0.74rem', color: '#94a3b8' }}>
+                          🗺️ Click any empty spot on the map below to drop a pin, then give it a name to create an evacuation center.
                         </p>
                       </div>
                     </div>
                     <button
                       type="button"
                       className="icon-close-btn"
-                      onClick={() => setIsAddShelterOpen(false)}
-                      title="Close Form"
+                      onClick={() => {
+                        setIsAddShelterOpen(false);
+                        setClickedSpot(null);
+                      }}
+                      title="Close Map"
                     >
                       <X size={16} />
                     </button>
                   </div>
 
-                  {shelterFormError && (
-                    <div className="auth-alert-error" style={{ marginBottom: '10px' }}>
-                      <AlertTriangle size={15} />
-                      <span>{shelterFormError}</span>
+                  {/* Toast Alert */}
+                  {shelterToast && (
+                    <div className="dispatch-toast-banner" style={{ background: 'rgba(16, 185, 129, 0.15)', borderColor: 'rgba(16, 185, 129, 0.4)', color: '#6ee7b7', margin: '0 0 10px 0' }}>
+                      <CheckCircle2 size={16} className="text-emerald" />
+                      <span>{shelterToast}</span>
                     </div>
                   )}
 
-                  {shelterFormSuccess && (
-                    <div className="auth-alert-success" style={{ marginBottom: '10px' }}>
-                      <CheckCircle2 size={15} />
-                      <span>{shelterFormSuccess}</span>
+                  {/* Interactive Placement Map */}
+                  <div
+                    ref={pickerMapContainerRef}
+                    style={{
+                      width: '100%',
+                      height: '380px',
+                      borderRadius: '10px',
+                      overflow: 'hidden',
+                      border: '1px solid rgba(6, 182, 212, 0.4)',
+                      boxShadow: 'inset 0 0 20px rgba(0, 0, 0, 0.5)',
+                      position: 'relative'
+                    }}
+                  />
+
+                  {/* Naming Bar - Activates when an empty spot is clicked */}
+                  {clickedSpot ? (
+                    <form onSubmit={handleConfirmCreateShelter} className="clicked-spot-naming-bar">
+                      <div className="naming-bar-left">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                          <span className="badge-pin-drop">📍 Selected Spot</span>
+                          <span style={{ fontSize: '0.82rem', color: '#cbd5e1', fontWeight: 600 }}>
+                            {clickedSpot.address}
+                          </span>
+                          <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontFamily: 'monospace' }}>
+                            ({clickedSpot.lat.toFixed(4)}, {clickedSpot.lng.toFixed(4)})
+                          </span>
+                        </div>
+
+                        <div className="naming-inputs-row">
+                          <div className="naming-input-wrap">
+                            <label>Give this Shelter a Name *</label>
+                            <input
+                              type="text"
+                              required
+                              autoFocus
+                              placeholder="e.g. Kapatagan North Community Gym"
+                              value={newShelterName}
+                              onChange={(e) => setNewShelterName(e.target.value)}
+                            />
+                          </div>
+                          <div className="naming-input-wrap-sm">
+                            <label>Cots Capacity</label>
+                            <input
+                              type="number"
+                              min="20"
+                              value={newShelterCapacity}
+                              onChange={(e) => setNewShelterCapacity(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="naming-bar-actions">
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => {
+                            if (droppedPinMarkerRef.current && pickerMapInstanceRef.current) {
+                              pickerMapInstanceRef.current.removeLayer(droppedPinMarkerRef.current);
+                              droppedPinMarkerRef.current = null;
+                            }
+                            setClickedSpot(null);
+                          }}
+                        >
+                          Clear Pin
+                        </button>
+                        <button
+                          type="submit"
+                          className="btn-primary"
+                          disabled={isSubmittingShelter}
+                          style={{ minWidth: '180px', justifyContent: 'center' }}
+                        >
+                          {isSubmittingShelter ? (
+                            <>
+                              <Loader2 size={15} className="spin" />
+                              <span>Saving to OSRM...</span>
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 size={16} />
+                              <span>Confirm & Place Shelter</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="map-picker-empty-hint">
+                      <span>👆 Click anywhere on an empty spot on the map above to drop a pin and name your new evacuation shelter.</span>
                     </div>
                   )}
-
-                  <form onSubmit={handleCreateShelter} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}>
-                      {/* Name */}
-                      <div className="form-group-compact">
-                        <label>Shelter Name *</label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="e.g. Kapatagan Central Gym Relief Hub"
-                          value={shelterForm.name}
-                          onChange={(e) => setShelterForm({ ...shelterForm, name: e.target.value })}
-                        />
-                      </div>
-
-                      {/* Municipality Jurisdiction */}
-                      <div className="form-group-compact">
-                        <label>Municipality Jurisdiction *</label>
-                        <select
-                          className="municipality-dropdown-select"
-                          value={shelterForm.municipality}
-                          onChange={(e) => handleMuniChange(e.target.value)}
-                          disabled={!!assignedMuniObj}
-                          style={{ width: '100%' }}
-                        >
-                          {SPECIFIC_MUNICIPALITIES.map(m => (
-                            <option key={m.id} value={m.shortName}>
-                              📍 {m.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Shelter Type */}
-                      <div className="form-group-compact">
-                        <label>Shelter Classification</label>
-                        <select
-                          className="municipality-dropdown-select"
-                          value={shelterForm.type}
-                          onChange={(e) => setShelterForm({ ...shelterForm, type: e.target.value })}
-                          style={{ width: '100%' }}
-                        >
-                          <option value="Primary Regional Evacuation Center">Primary Regional Evacuation Center</option>
-                          <option value="Secondary Regional Evacuation Hub">Secondary Regional Evacuation Hub</option>
-                          <option value="Community High School Evacuation Center">Community High School Evacuation Center</option>
-                          <option value="Municipal Disaster Operations Center">Municipal Disaster Operations Center</option>
-                          <option value="Primary Government Medical Trauma Hub">Primary Government Medical Trauma Hub</option>
-                          <option value="Upland Community Flood Sanctuary">Upland Community Flood Sanctuary</option>
-                        </select>
-                      </div>
-
-                      {/* Street Address */}
-                      <div className="form-group-compact">
-                        <label>Street Address / Barangay</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. Purok 4, Poblacion Central"
-                          value={shelterForm.address}
-                          onChange={(e) => setShelterForm({ ...shelterForm, address: e.target.value })}
-                        />
-                      </div>
-
-                      {/* Latitude & Longitude */}
-                      <div className="form-group-compact">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <label>Latitude & Longitude *</label>
-                          <button
-                            type="button"
-                            className="btn-autofill-coords"
-                            onClick={handleAutoFillCoords}
-                            title="Auto-fill center coordinates of selected municipality"
-                          >
-                            📍 Auto-Fill Coords
-                          </button>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                          <input
-                            type="number"
-                            step="any"
-                            required
-                            placeholder="Lat (e.g. 7.9001)"
-                            value={shelterForm.latitude}
-                            onChange={(e) => setShelterForm({ ...shelterForm, latitude: e.target.value })}
-                          />
-                          <input
-                            type="number"
-                            step="any"
-                            required
-                            placeholder="Lng (e.g. 123.7692)"
-                            value={shelterForm.longitude}
-                            onChange={(e) => setShelterForm({ ...shelterForm, longitude: e.target.value })}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Total Cots Capacity & Occupancy */}
-                      <div className="form-group-compact">
-                        <label>Capacity & Current Occupancy</label>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                          <input
-                            type="number"
-                            min="10"
-                            placeholder="Total Capacity (e.g. 600)"
-                            value={shelterForm.total_capacity}
-                            onChange={(e) => setShelterForm({ ...shelterForm, total_capacity: e.target.value })}
-                          />
-                          <input
-                            type="number"
-                            min="0"
-                            placeholder="Current Occupancy"
-                            value={shelterForm.current_occupancy}
-                            onChange={(e) => setShelterForm({ ...shelterForm, current_occupancy: e.target.value })}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Elevation & Contact */}
-                      <div className="form-group-compact">
-                        <label>Elevation / Safety Level</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. Elevated High Ground (Zero Flood Risk)"
-                          value={shelterForm.elevation}
-                          onChange={(e) => setShelterForm({ ...shelterForm, elevation: e.target.value })}
-                        />
-                      </div>
-
-                      <div className="form-group-compact">
-                        <label>Emergency Hotline / Contact</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. +63 917 882 1400"
-                          value={shelterForm.contact}
-                          onChange={(e) => setShelterForm({ ...shelterForm, contact: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Amenities */}
-                    <div className="form-group-compact">
-                      <label>Key Amenities / Resources (comma-separated)</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Backup Generator, Clean Water Filtration, First Aid Station, Mobile Kitchen"
-                        value={shelterForm.amenities}
-                        onChange={(e) => setShelterForm({ ...shelterForm, amenities: e.target.value })}
-                      />
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={() => setIsAddShelterOpen(false)}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        className="btn-primary"
-                        disabled={isSubmittingShelter}
-                      >
-                        {isSubmittingShelter ? (
-                          <>
-                            <Loader2 size={15} className="spin" />
-                            <span>Adding to OSRM...</span>
-                          </>
-                        ) : (
-                          <>
-                            <PlusCircle size={15} />
-                            <span>Save & Sync with OSRM</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </form>
                 </div>
               )}
 

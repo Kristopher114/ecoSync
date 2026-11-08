@@ -35,7 +35,8 @@ export default function DisasterMap({
   onToggleExpandMap,
   currentUser = null,
   onVolunteerIncident,
-  shelters: externalShelters
+  shelters: externalShelters,
+  onAddShelter
 }) {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -291,6 +292,25 @@ export default function DisasterMap({
           ">
             🚨 Report Emergency Here
           </button>
+          ${currentUser && currentUser.role === 'admin' ? `
+            <button id="btn-add-shelter-pin" style="
+              width: 100%;
+              background: linear-gradient(135deg, #10b981, #059669);
+              color: white;
+              border: none;
+              padding: 8px 12px;
+              border-radius: 8px;
+              font-weight: bold;
+              font-size: 12px;
+              cursor: pointer;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 6px;
+            ">
+              🏛️ Name this Spot as Evacuation Shelter
+            </button>
+          ` : ''}
           <button id="btn-clear-dropped-pin" style="
             width: 100%;
             background: rgba(255, 255, 255, 0.08);
@@ -319,6 +339,36 @@ export default function DisasterMap({
       popupContent.querySelector('#btn-evacuate-pin').onclick = () => {
         handleEvacuationRoute(lat, lng, null, null, 'driving');
       };
+
+      const addShelterBtn = popupContent.querySelector('#btn-add-shelter-pin');
+      if (addShelterBtn) {
+        addShelterBtn.onclick = async () => {
+          const defaultName = `${resolvedAddress} Evacuation Center`;
+          const shelterName = window.prompt(
+            `🏛️ Add Evacuation Shelter:\n\nEnter a name for this new evacuation shelter at ${resolvedAddress}:`,
+            defaultName
+          );
+          if (shelterName && shelterName.trim()) {
+            if (onAddShelter) {
+              await onAddShelter({
+                name: shelterName.trim(),
+                municipality: effectiveMunicipality === 'ALL' ? 'Kapatagan' : (lockedMuniObj ? lockedMuniObj.shortName : effectiveMunicipality),
+                type: 'Primary Regional Evacuation Center',
+                latitude: lat,
+                longitude: lng,
+                address: resolvedAddress,
+                total_capacity: 500,
+                current_occupancy: 0,
+                elevation: 'Elevated Safe Ground (Flood-Safe)',
+                amenities: ['Emergency Power', 'Clean Water Filtration', 'First Aid Station'],
+                created_by: currentUser?.username || 'Admin Coordinator'
+              });
+              alert(`✅ Evacuation Shelter "${shelterName.trim()}" successfully added and synced with OSRM navigation!`);
+              handleClearPin();
+            }
+          }
+        };
+      }
 
       pinMarker.setPopupContent(popupContent);
       pinMarker.openPopup();

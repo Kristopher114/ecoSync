@@ -3296,3 +3296,113 @@
     transform: translateY(0);
   }
 }
+
+
+/* --- Map-Based Shelter Placement Styles --- */
+.add-shelter-map-panel {
+  animation: slideDownFade 0.25s ease-out;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.add-shelter-map-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.map-picker-empty-hint {
+  padding: 10px 14px;
+  background: rgba(6, 182, 212, 0.08);
+  border: 1px dashed rgba(6, 182, 212, 0.35);
+  border-radius: 8px;
+  color: #7dd3fc;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.clicked-spot-naming-bar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(6, 182, 212, 0.5);
+  border-radius: 10px;
+  padding: 12px 14px;
+  animation: slideDownFade 0.2s ease-out;
+  box-shadow: 0 4px 20px rgba(6, 182, 212, 0.15);
+  flex-wrap: wrap;
+}
+
+.naming-bar-left {
+  flex: 1;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+}
+
+.badge-pin-drop {
+  background: rgba(6, 182, 212, 0.2);
+  color: #38bdf8;
+  border: 1px solid rgba(6, 182, 212, 0.45);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.70rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.naming-inputs-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.naming-input-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.naming-input-wrap label,
+.naming-input-wrap-sm label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #cbd5e1;
+}
+
+.naming-input-wrap input,
+.naming-input-wrap-sm input {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(6, 182, 212, 0.4);
+  color: #f8fafc;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.naming-input-wrap input:focus,
+.naming-input-wrap-sm input:focus {
+  outline: none;
+  border-color: #38bdf8;
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.3);
+}
+
+.naming-input-wrap-sm {
+  width: 130px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.naming-bar-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
