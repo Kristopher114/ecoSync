@@ -174,6 +174,7 @@ export default function AdminDashboard({
         elevation: 'Elevated High Ground (Zero Flood Risk)',
         amenities: ['Emergency Power', 'Clean Water Filtration', 'First Aid Station', 'Relief Rations'],
         contact: '+63 917 882 1400',
+        status: 'Active (Available)',
         created_by: currentUser?.username || 'Admin Coordinator'
       };
 
@@ -1036,7 +1037,7 @@ export default function AdminDashboard({
                           <td>
                             <span className="status-pill-delivered">
                               <span className="status-dot-emerald"></span>
-                              {shelter.status.split(' ')[0]}
+                              {(shelter.status || 'Active (Available)').split(' ')[0]}
                             </span>
                           </td>
                           <td>

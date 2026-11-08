@@ -453,7 +453,7 @@ export function getAllMergedShelters(serverShelters = []) {
   for (const s of localCustom) {
     if (!seenIds.has(s.id)) {
       seenIds.add(s.id);
-      result.push({ ...s, is_custom: true });
+      result.push({ ...s, is_custom: true, status: s.status || 'Active (Available)' });
     }
   }
 
@@ -462,7 +462,7 @@ export function getAllMergedShelters(serverShelters = []) {
     for (const s of serverShelters) {
       if (!seenIds.has(s.id)) {
         seenIds.add(s.id);
-        result.push(s);
+        result.push({ ...s, status: s.status || 'Active (Available)' });
       }
     }
   }
@@ -471,7 +471,7 @@ export function getAllMergedShelters(serverShelters = []) {
   for (const s of EVACUATION_SHELTERS) {
     if (!seenIds.has(s.id)) {
       seenIds.add(s.id);
-      result.push({ ...s, is_custom: false });
+      result.push({ ...s, is_custom: false, status: s.status || 'Active (Available)' });
     }
   }
 

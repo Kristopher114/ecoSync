@@ -154,8 +154,10 @@ export default function App() {
       const saved = data.shelter || {
         ...shelterData,
         id: `SHELTER-CUSTOM-${Date.now()}`,
+        status: shelterData.status || 'Active (Available)',
         is_custom: true
       };
+      if (!saved.status) saved.status = 'Active (Available)';
       saveCustomShelter(saved);
       setShelters(prev => getAllMergedShelters([saved, ...prev]));
       return { success: true, shelter: saved };
@@ -163,6 +165,7 @@ export default function App() {
       const fallbackShelter = {
         ...shelterData,
         id: `SHELTER-CUSTOM-${Date.now()}`,
+        status: shelterData.status || 'Active (Available)',
         is_custom: true
       };
       saveCustomShelter(fallbackShelter);
