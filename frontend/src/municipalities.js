@@ -11,7 +11,7 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
   },
   {
     id: 'ILIGAN',
-    name: '📍 Iligan City (Independent Urban Center)',
+    name: 'Iligan City (Independent Urban Center)',
     shortName: 'Iligan City',
     lat: 8.2280,
     lng: 124.2450,
@@ -20,7 +20,7 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
   },
   {
     id: 'TUBOD',
-    name: '🏛️ Tubod (Provincial Capital / MCC)',
+    name: 'Tubod (Provincial Capital / MCC)',
     shortName: 'Tubod (Capital)',
     lat: 8.0389,
     lng: 123.7920,
@@ -29,7 +29,7 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
   },
   {
     id: 'KAPATAGAN',
-    name: '🌾 Kapatagan',
+    name: 'Kapatagan',
     shortName: 'Kapatagan',
     lat: 7.8959,
     lng: 123.7671,
@@ -38,7 +38,7 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
   },
   {
     id: 'LALA',
-    name: '🌾 Lala (Maranding)',
+    name: 'Lala',
     shortName: 'Lala',
     lat: 7.9734,
     lng: 123.7477,
@@ -47,7 +47,7 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
   },
   {
     id: 'KAUSWAGAN',
-    name: '🌊 Kauswagan',
+    name: 'Kauswagan',
     shortName: 'Kauswagan',
     lat: 8.1887,
     lng: 124.0864,
@@ -56,7 +56,7 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
   },
   {
     id: 'LINAMON',
-    name: '🏖️ Linamon',
+    name: 'Linamon',
     shortName: 'Linamon',
     lat: 8.1840,
     lng: 124.1570,
@@ -65,7 +65,7 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
   },
   {
     id: 'BACOLOD',
-    name: '🌴 Bacolod',
+    name: 'Bacolod',
     shortName: 'Bacolod',
     lat: 8.1901,
     lng: 124.0240,
@@ -74,7 +74,7 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
   },
   {
     id: 'KOLAMBUGAN',
-    name: '⚓ Kolambugan (Panguil Port)',
+    name: 'Kolambugan',
     shortName: 'Kolambugan',
     lat: 8.1113,
     lng: 123.8966,
@@ -83,7 +83,7 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
   },
   {
     id: 'BALOI',
-    name: '⚡ Balo-i (Agus Hydropower Basin)',
+    name: 'Balo-i',
     shortName: 'Balo-i',
     lat: 8.1156,
     lng: 124.2220,
@@ -92,7 +92,7 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
   },
   {
     id: 'MAIGO',
-    name: '🌿 Maigo',
+    name: 'Maigo',
     shortName: 'Maigo',
     lat: 8.1586,
     lng: 123.9611,
@@ -101,7 +101,7 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
   },
   {
     id: 'BAROY',
-    name: '🏘️ Baroy',
+    name: 'Baroy',
     shortName: 'Baroy',
     lat: 8.0245,
     lng: 123.7795,
@@ -110,7 +110,7 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
   },
   {
     id: 'SND',
-    name: '🌊 Sultan Naga Dimaporo (SND)',
+    name: 'Sultan Naga Dimaporo (SND)',
     shortName: 'SND',
     lat: 7.7949,
     lng: 123.7187,
@@ -118,3 +118,4 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
     keywords: ['Sultan Naga Dimaporo', 'SND']
   }
 ];
+
