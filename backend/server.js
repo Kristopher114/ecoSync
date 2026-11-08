@@ -16,6 +16,7 @@ const {
   resetDailyIncidents
 } = require('./incidentsStore');
 const { EVACUATION_SHELTERS, getNearestEvacuationRoute } = require('./routing');
+const { getAllShelters, createShelterRecord, deleteShelterRecord } = require('./sheltersStore');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -243,8 +244,31 @@ app.post('/api/alerts/dispatch', async (req, res) => {
 });
 
 // --- SAFE EVACUATION ROUTING API (API #5 - OSRM ENGINE) ---
-app.get('/api/evacuation-shelters', (req, res) => {
-  res.status(200).json(EVACUATION_SHELTERS);
+app.get('/api/evacuation-shelters', async (req, res) => {
+  try {
+    const shelters = await getAllShelters();
+    res.status(200).json(shelters);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/evacuation-shelters', async (req, res) => {
+  try {
+    const newShelter = await createShelterRecord(req.body);
+    res.status(201).json({ message: 'Evacuation shelter added successfully', shelter: newShelter });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.delete('/api/evacuation-shelters/:id', async (req, res) => {
+  try {
+    const result = await deleteShelterRecord(req.params.id);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.get('/api/evacuation-route', async (req, res) => {

@@ -64,3 +64,30 @@ ON CONFLICT (username) DO UPDATE
 SET role = EXCLUDED.role,
     municipality = EXCLUDED.municipality,
     municipality_name = EXCLUDED.municipality_name;
+
+
+-- Dynamic Evacuation Shelters Table (Admin Created & Managed)
+CREATE TABLE IF NOT EXISTS public.evacuation_shelters (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    municipality TEXT NOT NULL,
+    type TEXT DEFAULT 'Designated Evacuation Center',
+    latitude DOUBLE PRECISION NOT NULL,
+    longitude DOUBLE PRECISION NOT NULL,
+    address TEXT,
+    total_capacity INT DEFAULT 500,
+    current_occupancy INT DEFAULT 0,
+    status TEXT DEFAULT 'Active (Available)',
+    elevation TEXT DEFAULT 'Elevated Safe Ground',
+    amenities JSONB DEFAULT '[]'::jsonb,
+    contact TEXT,
+    created_by TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.evacuation_shelters ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public all access on evacuation_shelters"
+ON public.evacuation_shelters FOR ALL
+USING (true)
+WITH CHECK (true);

@@ -15,6 +15,7 @@ import {
   doesIncidentBelongToMunicipality
 } from './municipalities';
 import { API_BASE_URL } from './config';
+import { getAllMergedShelters, saveCustomShelter, removeCustomShelter } from './sheltersData';
 import './App.css';
 
 const CATEGORIES = ['All', 'Flood', 'Medical', 'Fire', 'Rescue', 'Food & Water', 'General'];
@@ -80,6 +81,62 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeBroadcastAlert, setActiveBroadcastAlert] = useState(null);
   const [isMapExpanded, setIsMapExpanded] = useState(false);
+  const [shelters, setShelters] = useState(() => getAllMergedShelters([]));
+
+  const fetchShelters = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/evacuation-shelters`);
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setShelters(getAllMergedShelters(data));
+        }
+      }
+    } catch (err) {
+      console.warn('Error fetching evacuation shelters:', err.message);
+    }
+  };
+
+  const handleAddShelter = async (shelterData) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/evacuation-shelters`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(shelterData)
+      });
+      const data = await res.json();
+      const saved = data.shelter || {
+        ...shelterData,
+        id: `SHELTER-CUSTOM-${Date.now()}`,
+        is_custom: true
+      };
+      saveCustomShelter(saved);
+      setShelters(prev => getAllMergedShelters([saved, ...prev]));
+      return { success: true, shelter: saved };
+    } catch (err) {
+      const fallbackShelter = {
+        ...shelterData,
+        id: `SHELTER-CUSTOM-${Date.now()}`,
+        is_custom: true
+      };
+      saveCustomShelter(fallbackShelter);
+      setShelters(prev => getAllMergedShelters([fallbackShelter, ...prev]));
+      return { success: true, shelter: fallbackShelter };
+    }
+  };
+
+  const handleDeleteShelter = async (shelterId) => {
+    try {
+      await fetch(`${API_BASE_URL}/api/evacuation-shelters/${shelterId}`, {
+        method: 'DELETE'
+      });
+    } catch (err) {
+      // ignore
+    }
+    removeCustomShelter(shelterId);
+    setShelters(prev => prev.filter(s => s.id !== shelterId));
+  };
 
   const handleOpenAuth = (portal = 'user') => {
     setAuthPortal(portal);
@@ -122,6 +179,7 @@ export default function App() {
 
   useEffect(() => {
     fetchIncidents();
+    fetchShelters();
   }, []);
 
   // Update Status (PUT)
@@ -370,6 +428,7 @@ export default function App() {
             </div>
 
             <DisasterMap
+              shelters={shelters}
               incidents={displayedIncidents}
               selectedCategory={selectedCategory}
               dateFilter={dateFilter}
@@ -561,6 +620,10 @@ export default function App() {
               onDeleteIncident={handleDeleteIncident}
               assignedMunicipality={adminMunicipality}
               currentUser={currentUser}
+              shelters={shelters}
+              onAddShelter={handleAddShelter}
+              onDeleteShelter={handleDeleteShelter}
+              onRefreshShelters={fetchShelters}
             />
           ) : (
             <div className="admin-access-locked glass-panel">

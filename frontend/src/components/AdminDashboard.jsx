@@ -302,7 +302,7 @@ export default function AdminDashboard({
                 <Database size={18} />
               </div>
               <div className="admin-nav-text">
-                <span className="admin-nav-title">CRUD Management</span>
+                <span className="admin-nav-title">Report Management</span>
                 <span className="admin-nav-sub">
                   {assignedMuniObj ? `${assignedMuniObj.shortName} Reports` : 'Citizen Incident Reports'}
                 </span>
@@ -671,7 +671,12 @@ export default function AdminDashboard({
                           </td>
                           <td>
                             <div className="incident-table-cell">
-                              <strong>{shelter.name}</strong>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <strong>{shelter.name}</strong>
+                                {shelter.is_custom && (
+                                  <span className="badge-custom-shelter">⭐ Admin Added</span>
+                                )}
+                              </div>
                               <span className="text-muted text-xs">{shelter.address}</span>
                             </div>
                           </td>

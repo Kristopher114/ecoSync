@@ -34,7 +34,8 @@ export default function DisasterMap({
   isMapExpanded = false,
   onToggleExpandMap,
   currentUser = null,
-  onVolunteerIncident
+  onVolunteerIncident,
+  shelters: externalShelters
 }) {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -55,6 +56,7 @@ export default function DisasterMap({
   // Evacuation Shelters & OSRM Routing States (API #5)
   const [showShelters, setShowShelters] = useState(true);
   const [shelters, setShelters] = useState(EVACUATION_SHELTERS);
+  const activeShelters = externalShelters && externalShelters.length > 0 ? externalShelters : shelters;
   const [activeRoute, setActiveRoute] = useState(null);
   const [isRouting, setIsRouting] = useState(false);
   const [routingError, setRoutingError] = useState(null);
@@ -93,7 +95,7 @@ export default function DisasterMap({
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const results = await searchLiveMunicipalityPlaces(q, effectiveMunicipality, shelters);
+        const results = await searchLiveMunicipalityPlaces(q, effectiveMunicipality, activeShelters);
         if (!cancelled) {
           setLiveSuggestions(results);
         }
@@ -410,8 +412,8 @@ export default function DisasterMap({
 
   // Filter shelters according to effective municipality (Admin's locked municipality or user's selected filter)
   const displayedShelters = effectiveMunicipality === 'ALL'
-    ? shelters
-    : shelters.filter(s => doesShelterBelongToMunicipality(s, effectiveMunicipality));
+    ? activeShelters
+    : activeShelters.filter(s => doesShelterBelongToMunicipality(s, effectiveMunicipality));
 
   // Calculate & Draw Real-Time Road Route via OSRM API (API #5, with direct browser OSRM fallback)
   const handleEvacuationRoute = async (startLat, startLng, destLat = null, destLng = null, mode = 'driving') => {
@@ -419,7 +421,7 @@ export default function DisasterMap({
     setIsRouting(true);
     setRoutingError(null);
 
-    const candidateShelters = displayedShelters.length > 0 ? displayedShelters : shelters;
+    const candidateShelters = displayedShelters.length > 0 ? displayedShelters : activeShelters;
 
     // If Admin is locked to a municipality and no explicit destLat/destLng was given, route to their municipality's nearest shelter
     let targetDestLat = destLat;
@@ -574,6 +576,7 @@ export default function DisasterMap({
             📍 ${shelter.municipality || 'Lanao del Norte'}
           </span>
         </div>
+        ${shelter.is_custom ? `<div style="margin-bottom: 6px;"><span style="background: rgba(234, 179, 8, 0.2); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.4); padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 700;">⭐ Admin-Designated Shelter</span></div>` : ''}
         <h4 style="margin: 0 0 4px 0; color: #f8fafc; font-size: 14px; font-weight: 700;">${shelter.name}</h4>
         <p style="margin: 0 0 8px 0; color: #94a3b8; font-size: 11px;">📍 ${shelter.address}</p>
         
@@ -931,7 +934,7 @@ export default function DisasterMap({
       const results =
         liveSuggestions.length > 0
           ? liveSuggestions
-          : await searchLiveMunicipalityPlaces(searchQuery, effectiveMunicipality, shelters);
+          : await searchLiveMunicipalityPlaces(searchQuery, effectiveMunicipality, activeShelters);
 
       if (results && results.length > 0) {
         handleSelectPlace(results[0]);

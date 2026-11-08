@@ -404,3 +404,76 @@ export async function calculateDirectOsrmRoute(startLat, startLng, destLat = nul
   };
 }
 
+
+
+// --- DYNAMIC ADMIN-INPUTTED EVACUATION SHELTERS HELPERS ---
+
+const LOCAL_STORAGE_CUSTOM_SHELTERS_KEY = 'ecosync_custom_shelters';
+
+export function getCustomShelters() {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_CUSTOM_SHELTERS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (err) {
+    console.warn('Could not read custom shelters from localStorage:', err.message);
+    return [];
+  }
+}
+
+export function saveCustomShelter(shelter) {
+  try {
+    const current = getCustomShelters();
+    const updated = [shelter, ...current.filter(s => s.id !== shelter.id)];
+    localStorage.setItem(LOCAL_STORAGE_CUSTOM_SHELTERS_KEY, JSON.stringify(updated));
+    return updated;
+  } catch (err) {
+    console.warn('Could not save custom shelter to localStorage:', err.message);
+    return [];
+  }
+}
+
+export function removeCustomShelter(shelterId) {
+  try {
+    const current = getCustomShelters();
+    const updated = current.filter(s => s.id !== shelterId);
+    localStorage.setItem(LOCAL_STORAGE_CUSTOM_SHELTERS_KEY, JSON.stringify(updated));
+    return updated;
+  } catch (err) {
+    console.warn('Could not remove custom shelter from localStorage:', err.message);
+    return [];
+  }
+}
+
+export function getAllMergedShelters(serverShelters = []) {
+  const localCustom = getCustomShelters();
+  const seenIds = new Set();
+  const result = [];
+
+  // 1. First add any custom shelters (from local storage or server marked as custom)
+  for (const s of localCustom) {
+    if (!seenIds.has(s.id)) {
+      seenIds.add(s.id);
+      result.push({ ...s, is_custom: true });
+    }
+  }
+
+  // 2. Add server shelters
+  if (Array.isArray(serverShelters)) {
+    for (const s of serverShelters) {
+      if (!seenIds.has(s.id)) {
+        seenIds.add(s.id);
+        result.push(s);
+      }
+    }
+  }
+
+  // 3. Add built-in baseline shelters
+  for (const s of EVACUATION_SHELTERS) {
+    if (!seenIds.has(s.id)) {
+      seenIds.add(s.id);
+      result.push({ ...s, is_custom: false });
+    }
+  }
+
+  return result;
+}
