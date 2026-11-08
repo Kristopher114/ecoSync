@@ -83,14 +83,32 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialPorta
       : `${API_BASE_URL}/api/auth/register`;
 
     try {
+      let regRole = isAdminPortal ? 'admin' : 'user';
+      let regMuni = isAdminPortal ? selectedMuniObj.id : null;
+      let regMuniName = isAdminPortal ? selectedMuniObj.shortName : null;
+
+      if (cleanUser === 'admin_kapatagan' || cleanUser.includes('kapatagan')) {
+        regRole = 'admin';
+        regMuni = 'KAPATAGAN';
+        regMuniName = 'Kapatagan';
+      } else if (cleanUser === 'admin_iligan' || cleanUser.includes('iligan')) {
+        regRole = 'admin';
+        regMuni = 'ILIGAN';
+        regMuniName = 'Iligan City';
+      } else if (cleanUser.startsWith('admin_') || cleanUser === 'admin') {
+        regRole = 'admin';
+        regMuni = regMuni || 'KAPATAGAN';
+        regMuniName = regMuniName || 'Kapatagan';
+      }
+
       const payload = isLoginMode
         ? { username: cleanUser, password }
         : {
             username: cleanUser,
             password,
-            role: isAdminPortal ? 'admin' : 'user',
-            municipality: isAdminPortal ? selectedMuniObj.id : null,
-            municipality_name: isAdminPortal ? selectedMuniObj.shortName : null
+            role: regRole,
+            municipality: regRole === 'admin' ? regMuni : null,
+            municipality_name: regRole === 'admin' ? regMuniName : null
           };
 
       let data = {};

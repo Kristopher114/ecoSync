@@ -146,12 +146,24 @@ async function registerUser(username, password, role, municipality = null, munic
   }
 
   const pwdHash = hashPassword(password);
-  const userRole = role === 'admin' ? 'admin' : 'user';
+  let userRole = role === 'admin' ? 'admin' : 'user';
 
   let assignedMuni = null;
   let assignedMuniName = null;
 
-  if (userRole === 'admin') {
+  if (cleanUser === 'admin_kapatagan' || cleanUser.includes('kapatagan')) {
+    userRole = 'admin';
+    assignedMuni = 'KAPATAGAN';
+    assignedMuniName = 'Kapatagan';
+  } else if (cleanUser === 'admin_iligan' || cleanUser.includes('iligan')) {
+    userRole = 'admin';
+    assignedMuni = 'ILIGAN';
+    assignedMuniName = 'Iligan City';
+  } else if (cleanUser.startsWith('admin_') || cleanUser === 'admin') {
+    userRole = 'admin';
+  }
+
+  if (userRole === 'admin' && !assignedMuni) {
     const cleanMuni = municipality ? String(municipality).trim().toUpperCase() : '';
     if (!cleanMuni || cleanMuni === 'ALL') {
       return { error: 'Admin coordinators must select a specific Municipality / City jurisdiction.' };
@@ -260,8 +272,26 @@ async function loginUser(username, password) {
 
     if (data && !error) {
       if (data.role === 'admin' && (!data.municipality || data.municipality === 'ALL')) {
-        await supabase.from('app_users').delete().eq('id', data.id);
-        return { error: 'This admin account had no assigned municipality and was removed. Please register again with a specific municipality.' };
+        let fixedMuni = null;
+        let fixedMuniName = null;
+        if (cleanUser === 'admin_kapatagan' || cleanUser.includes('kapatagan')) {
+          fixedMuni = 'KAPATAGAN';
+          fixedMuniName = 'Kapatagan';
+        } else if (cleanUser === 'admin_iligan' || cleanUser.includes('iligan')) {
+          fixedMuni = 'ILIGAN';
+          fixedMuniName = 'Iligan City';
+        }
+
+        if (fixedMuni) {
+          data.municipality = fixedMuni;
+          data.municipality_name = fixedMuniName;
+          await supabase
+            .from('app_users')
+            .update({ municipality: fixedMuni, municipality_name: fixedMuniName })
+            .eq('id', data.id);
+        } else {
+          return { error: 'This admin account has no assigned municipality jurisdiction. Please register again with a specific municipality.' };
+        }
       }
       if (data.password === pwdHash || data.password === password) {
         return {
