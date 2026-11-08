@@ -9,8 +9,7 @@ import { EVACUATION_SHELTERS, calculateDirectOsrmRoute } from '../sheltersData';
 import {
   getMunicipalityById,
   doesShelterBelongToMunicipality,
-  getRegisteredPlacesForMunicipality,
-  searchMunicipalityPlaces
+  searchLiveMunicipalityPlaces
 } from '../municipalities';
 
 const URGENCY_COLORS = {
@@ -42,6 +41,7 @@ export default function DisasterMap({
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [liveSuggestions, setLiveSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchError, setSearchError] = useState('');
   const [activePinAddress, setActivePinAddress] = useState(null);
@@ -50,14 +50,45 @@ export default function DisasterMap({
   const effectiveMunicipality = lockedMunicipality || selectedMunicipality || 'ALL';
   const lockedMuniObj = lockedMunicipality ? getMunicipalityById(lockedMunicipality) : null;
   const activeMuniObj = getMunicipalityById(effectiveMunicipality);
-  const matchingPlaces = searchMunicipalityPlaces(searchQuery, effectiveMunicipality);
 
   // Reset search input & errors when active municipality changes
   useEffect(() => {
     setSearchQuery('');
+    setLiveSuggestions([]);
     setSearchError('');
     setShowSuggestions(false);
   }, [effectiveMunicipality]);
+
+  // Live Debounced Search Engine (Photon OpenStreetMap API + Nominatim Bounded Viewbox)
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setLiveSuggestions([]);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const results = await searchLiveMunicipalityPlaces(q, effectiveMunicipality, shelters);
+        if (!cancelled) {
+          setLiveSuggestions(results);
+        }
+      } catch (err) {
+        console.warn('Live search engine error:', err);
+      } finally {
+        if (!cancelled) {
+          setIsSearching(false);
+        }
+      }
+    }, 280);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [searchQuery, effectiveMunicipality, shelters]);
 
   // Clear manually dropped landmark pin
   const handleClearPin = () => {
@@ -840,32 +871,38 @@ export default function DisasterMap({
     }
   };
 
-  // Municipality-Scoped Search Engine (Only places registered in the active municipality can be searched)
-  const handleSearch = (e) => {
+  // Live Municipality-Scoped Search Engine (Photon + Nominatim OpenStreetMap API)
+  const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchQuery.trim() || !mapInstanceRef.current) return;
 
     setIsSearching(true);
     setSearchError('');
 
-    const results = searchMunicipalityPlaces(searchQuery, effectiveMunicipality);
-    if (results.length > 0) {
-      handleSelectPlace(results[0]);
+    try {
+      const results =
+        liveSuggestions.length > 0
+          ? liveSuggestions
+          : await searchLiveMunicipalityPlaces(searchQuery, effectiveMunicipality, shelters);
+
+      if (results && results.length > 0) {
+        handleSelectPlace(results[0]);
+      } else {
+        const scopeName =
+          effectiveMunicipality === 'ALL'
+            ? 'Lanao del Norte & Iligan City'
+            : activeMuniObj.shortName;
+
+        setSearchError(
+          `No barangay or landmark matching "${searchQuery}" was found inside ${scopeName}.`
+        );
+      }
+    } catch (err) {
+      console.warn('Search error:', err);
+      setSearchError('Could not reach live search engine. Please try again.');
+    } finally {
       setIsSearching(false);
-      return;
     }
-
-    // No match in the currently selected municipality
-    const registeredList = getRegisteredPlacesForMunicipality(effectiveMunicipality);
-    const samplePlaces = registeredList.slice(0, 4).map(p => p.name).join(', ');
-    const scopeName = effectiveMunicipality === 'ALL'
-      ? 'Lanao del Norte & Iligan City'
-      : activeMuniObj.shortName;
-
-    setSearchError(
-      `"${searchQuery}" is not a registered barangay or landmark in ${scopeName}. Try: ${samplePlaces}`
-    );
-    setIsSearching(false);
   };
 
   // GPS "Locate Me" Button
@@ -892,7 +929,7 @@ export default function DisasterMap({
 
   return (
     <div className="map-wrapper glass-panel">
-      {/* Municipality-Scoped Floating Search Bar & Registered Barangay Autocomplete */}
+      {/* Live OpenStreetMap / Photon Search Engine Scoped to Selected Municipality */}
       <div className="gmaps-search-container">
         <form onSubmit={handleSearch} className="gmaps-search-bar glass-panel">
           <Search size={16} className="text-cyan" style={{ flexShrink: 0 }} />
@@ -900,12 +937,12 @@ export default function DisasterMap({
             type="text"
             placeholder={
               effectiveMunicipality !== 'ALL'
-                ? `Search in ${activeMuniObj.shortName} (e.g. Poblacion, ${getRegisteredPlacesForMunicipality(effectiveMunicipality)[1]?.name || 'Barangay'})...`
-                : 'Search registered barangay (e.g. Poblacion, Butadon, Tibanga)...'
+                ? `Search in ${activeMuniObj.shortName} (e.g. Poblacion, Butadon)...`
+                : 'Search barangay or landmark in Lanao del Norte...'
             }
             value={searchQuery}
             onFocus={() => setShowSuggestions(true)}
-            onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
             onChange={(e) => {
               setSearchQuery(e.target.value);
               setSearchError('');
@@ -917,8 +954,8 @@ export default function DisasterMap({
               type="button"
               onClick={() => {
                 setSearchQuery('');
+                setLiveSuggestions([]);
                 setSearchError('');
-                setShowSuggestions(true);
               }}
               style={{
                 background: 'transparent',
@@ -939,19 +976,19 @@ export default function DisasterMap({
           </button>
         </form>
 
-        {/* Registered Barangays & Landmarks Autocomplete Dropdown */}
-        {showSuggestions && matchingPlaces.length > 0 && (
+        {/* Live Search Engine Autocomplete Results Dropdown */}
+        {showSuggestions && liveSuggestions.length > 0 && (
           <div className="search-suggestions-dropdown glass-panel">
             <div className="search-suggestions-header">
               <span>
-                📍 Registered Places in {effectiveMunicipality === 'ALL' ? 'All Municipalities' : activeMuniObj.shortName}
+                🌐 Live Search in {effectiveMunicipality === 'ALL' ? 'Lanao del Norte & Iligan' : activeMuniObj.shortName}
               </span>
-              <span className="search-suggestions-count">{matchingPlaces.length} available</span>
+              <span className="search-suggestions-count">{liveSuggestions.length} matches</span>
             </div>
             <div className="search-suggestions-list">
-              {matchingPlaces.slice(0, 8).map((place, idx) => (
+              {liveSuggestions.slice(0, 8).map((place, idx) => (
                 <button
-                  key={`${place.municipalityId}-${place.name}-${idx}`}
+                  key={`${place.name}-${place.lat}-${place.lng}-${idx}`}
                   type="button"
                   className="search-suggestion-item"
                   onMouseDown={(e) => {
