@@ -5,7 +5,10 @@ import AdminDashboard from './components/AdminDashboard';
 import WeatherWidget from './components/WeatherWidget';
 import ReportModal from './components/ReportModal';
 import AuthModal from './components/AuthModal';
-import { ShieldAlert, Lock, UserPlus, Radio, CheckCircle2, X } from 'lucide-react';
+import {
+  ShieldAlert, Lock, UserPlus, Radio, CheckCircle2, X,
+  Calendar, Clock, RotateCcw, Sparkles, Filter
+} from 'lucide-react';
 import { API_BASE_URL } from './config';
 import './App.css';
 
@@ -24,6 +27,14 @@ export default function App() {
 
   const [incidents, setIncidents] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [dateFilter, setDateFilter] = useState('today'); // 'today' | '24h' | 'custom' | 'all'
+  const [selectedCustomDate, setSelectedCustomDate] = useState(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  });
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [clickedCoords, setClickedCoords] = useState(null);
@@ -113,48 +124,53 @@ export default function App() {
     setActiveTab('map');
   };
 
-  // Seed sample data if empty
+  // Seed sample data if empty with today's timestamp
   const handleSeedSamples = async () => {
+    const now = new Date().toISOString();
     const samples = [
       {
         title: 'Flash Flood Rescue Needed',
         description: 'Rising water trapped 6 elderly residents on 2nd floor balcony. Need rubber boat and life vests.',
         category: 'Flood',
         urgency: 'Critical',
-        latitude: 8.1050,
-        longitude: 124.0690,
+        latitude: 8.2150,
+        longitude: 124.2420,
         location_name: 'Poblacion Riverside Sector',
-        reporter_email: 'volunteer.mark@ecosync.org'
+        reporter_email: 'volunteer.mark@ecosync.org',
+        created_at: now
       },
       {
         title: 'Emergency Medical Evacuation',
         description: 'Diabetic patient collapsed due to insulin shortage in evacuation shelter.',
         category: 'Medical',
         urgency: 'High',
-        latitude: 8.0980,
-        longitude: 124.0620,
+        latitude: 8.2280,
+        longitude: 124.2490,
         location_name: 'District Community Gymnasium',
-        reporter_email: 'nurse.sarah@relief.org'
+        reporter_email: 'nurse.sarah@relief.org',
+        created_at: now
       },
       {
         title: 'Electrical Spark / Fire Hazard',
         description: 'Downed power pole sparking near saturated floodwater and residential houses.',
         category: 'Fire',
         urgency: 'Critical',
-        latitude: 8.1120,
-        longitude: 124.0750,
+        latitude: 8.2320,
+        longitude: 124.2380,
         location_name: 'Corner Provincial Highway',
-        reporter_email: 'citizen99@gmail.com'
+        reporter_email: 'citizen99@gmail.com',
+        created_at: now
       },
       {
         title: 'Clean Drinking Water Shortage',
         description: 'Community deep-well contaminated by flood runoff. 120 families requiring bottled water rations.',
         category: 'Food & Water',
         urgency: 'Medium',
-        latitude: 8.0890,
-        longitude: 124.0580,
+        latitude: 8.2050,
+        longitude: 124.2350,
         location_name: 'Barangay Hall Evacuation Center',
-        reporter_email: 'coordinator@ecosync.org'
+        reporter_email: 'coordinator@ecosync.org',
+        created_at: now
       }
     ];
 
@@ -165,8 +181,63 @@ export default function App() {
         body: JSON.stringify(item)
       });
     }
+    setDateFilter('today');
     fetchIncidents();
   };
+
+  // Helper to check if an ISO date string matches today's calendar date
+  const isDateToday = (dateStr) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    const now = new Date();
+    return d.getFullYear() === now.getFullYear() &&
+           d.getMonth() === now.getMonth() &&
+           d.getDate() === now.getDate();
+  };
+
+  // Helper to check if within 24 hours
+  const isWithinPast24h = (dateStr) => {
+    if (!dateStr) return false;
+    const diff = Date.now() - new Date(dateStr).getTime();
+    return diff >= 0 && diff <= 24 * 60 * 60 * 1000;
+  };
+
+  // Helper to check custom YYYY-MM-DD
+  const matchesCustomDate = (dateStr, targetYMD) => {
+    if (!dateStr || !targetYMD) return false;
+    const d = new Date(dateStr);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}` === targetYMD;
+  };
+
+  // Compute landmark counts for daily reset analytics
+  const todayCount = incidents.filter(i => isDateToday(i.created_at)).length;
+  const pastDaysCount = incidents.length - todayCount;
+
+  // Filter incidents by date window
+  const dateFilteredIncidents = incidents.filter(inc => {
+    if (dateFilter === 'all') return true;
+    if (!inc.created_at) return true;
+
+    if (dateFilter === 'today') return isDateToday(inc.created_at);
+    if (dateFilter === '24h') return isWithinPast24h(inc.created_at);
+    if (dateFilter === 'custom') return matchesCustomDate(inc.created_at, selectedCustomDate);
+    return true;
+  });
+
+  // Filter by category
+  const displayedIncidents = selectedCategory === 'All'
+    ? dateFilteredIncidents
+    : dateFilteredIncidents.filter(inc => inc.category === selectedCategory);
+
+  const todayFormatted = new Date().toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
 
   const isAdmin = currentUser?.role === 'admin';
 
@@ -208,38 +279,135 @@ export default function App() {
       {activeTab === 'map' ? (
         <main className="main-hub-content">
           <section className="map-section-container">
-            {/* Filter Category Chips */}
-            <div className="filter-bar glass-panel">
-              {CATEGORIES.map(cat => (
-                <button
-                  key={cat}
-                  className={`filter-chip ${selectedCategory === cat ? 'active' : ''}`}
-                  onClick={() => setSelectedCategory(cat)}
-                >
-                  {cat === 'All' ? '🌐 All Incidents' :
-                   cat === 'Flood' ? '🌊 Floods' :
-                   cat === 'Medical' ? '🚑 Medical' :
-                   cat === 'Fire' ? '🔥 Fires' :
-                   cat === 'Rescue' ? '🛟 Rescue' :
-                   cat === 'Food & Water' ? '🍞 Food/Water' : '⚠️ General'}
-                </button>
-              ))}
+            {/* Filter Category Chips & Actions */}
+            <div className="filter-controls-wrapper">
+              <div className="filter-bar glass-panel">
+                <span className="filter-group-label">Category:</span>
+                {CATEGORIES.map(cat => (
+                  <button
+                    key={cat}
+                    className={`filter-chip ${selectedCategory === cat ? 'active' : ''}`}
+                    onClick={() => setSelectedCategory(cat)}
+                  >
+                    {cat === 'All' ? '🌐 All Incidents' :
+                     cat === 'Flood' ? '🌊 Floods' :
+                     cat === 'Medical' ? '🚑 Medical' :
+                     cat === 'Fire' ? '🔥 Fires' :
+                     cat === 'Rescue' ? '🛟 Rescue' :
+                     cat === 'Food & Water' ? '🍞 Food/Water' : '⚠️ General'}
+                  </button>
+                ))}
 
-              {incidents.length === 0 && (
-                <button
-                  className="filter-chip"
-                  style={{ background: 'rgba(6, 182, 212, 0.2)', color: '#38bdf8', marginLeft: 'auto' }}
-                  onClick={handleSeedSamples}
-                >
-                  ⚡ Populate Demo Incidents
-                </button>
+                {incidents.length === 0 && (
+                  <button
+                    className="filter-chip"
+                    style={{ background: 'rgba(6, 182, 212, 0.2)', color: '#38bdf8', marginLeft: 'auto' }}
+                    onClick={handleSeedSamples}
+                  >
+                    ⚡ Populate Demo Incidents
+                  </button>
+                )}
+              </div>
+
+              {/* Date & Daily Reset Filter Bar */}
+              <div className="date-filter-bar glass-panel">
+                <div className="date-filter-left">
+                  <span className="filter-group-label">
+                    <Calendar size={14} className="text-cyan" />
+                    <span>Landmark Date:</span>
+                  </span>
+
+                  <button
+                    type="button"
+                    className={`date-chip ${dateFilter === 'today' ? 'active' : ''}`}
+                    onClick={() => setDateFilter('today')}
+                    title="Daily Auto-Reset: Shows only emergencies reported today, resetting every midnight"
+                  >
+                    <span>📅 Today (Auto-Reset)</span>
+                    <span className="count-badge">{todayCount}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`date-chip ${dateFilter === '24h' ? 'active' : ''}`}
+                    onClick={() => setDateFilter('24h')}
+                    title="Show landmarks reported in the past 24 hours"
+                  >
+                    <span>⏱️ Past 24h</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`date-chip ${dateFilter === 'all' ? 'active' : ''}`}
+                    onClick={() => setDateFilter('all')}
+                    title="Show all landmarks across all dates"
+                  >
+                    <span>🌐 All Time</span>
+                    <span className="count-badge">{incidents.length}</span>
+                  </button>
+
+                  <div className="date-picker-wrap">
+                    <input
+                      type="date"
+                      className="date-input-field"
+                      value={selectedCustomDate}
+                      onChange={(e) => {
+                        setSelectedCustomDate(e.target.value);
+                        setDateFilter('custom');
+                      }}
+                      title="Pick a specific date to view its landmarks"
+                    />
+                    {dateFilter === 'custom' && (
+                      <span className="custom-date-badge">Viewing {selectedCustomDate}</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="date-filter-right">
+                  <span className="daily-reset-clock-pill" title="Every day at 00:00 midnight, previous days' landmarks are archived to prevent clutter">
+                    <Clock size={13} className="text-emerald" />
+                    <span>Daily Reset: {todayFormatted}</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Daily Reset Zero-State Notice */}
+              {dateFilter === 'today' && todayCount === 0 && (
+                <div className="daily-reset-notice glass-panel">
+                  <div className="daily-notice-text">
+                    <Sparkles size={16} className="text-cyan" />
+                    <span>
+                      <strong>Map Reset Active for Today ({todayFormatted}):</strong> No new emergency landmarks reported today.
+                      {pastDaysCount > 0 ? ` ${pastDaysCount} older landmark(s) are archived from previous days to keep the map clutter-free.` : ''}
+                    </span>
+                  </div>
+                  <div className="daily-notice-actions">
+                    {pastDaysCount > 0 && (
+                      <button
+                        type="button"
+                        className="daily-view-past-btn"
+                        onClick={() => setDateFilter('all')}
+                      >
+                        View All Landmarks ({pastDaysCount})
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="daily-seed-btn"
+                      onClick={handleSeedSamples}
+                    >
+                      ⚡ Populate Today's Demo Incidents
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
 
-            {/* Interactive Leaflet Map */}
+            {/* Interactive Leaflet Map with Active Date Filter */}
             <DisasterMap
-              incidents={incidents}
+              incidents={displayedIncidents}
               selectedCategory={selectedCategory}
+              dateFilter={dateFilter}
               onMapClick={handleMapClick}
               selectedIncident={selectedIncident}
               onSelectIncident={(inc) => setSelectedIncident(inc)}

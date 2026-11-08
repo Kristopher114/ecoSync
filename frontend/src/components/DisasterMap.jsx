@@ -16,6 +16,7 @@ const URGENCY_COLORS = {
 export default function DisasterMap({
   incidents,
   selectedCategory,
+  dateFilter = 'today',
   onMapClick,
   selectedIncident,
   onSelectIncident,
@@ -32,6 +33,16 @@ export default function DisasterMap({
   const [isSearching, setIsSearching] = useState(false);
   const [activePinAddress, setActivePinAddress] = useState(null);
   const [activePinCoords, setActivePinCoords] = useState(null);
+
+  // Clear manually dropped landmark pin
+  const handleClearPin = () => {
+    if (clickedPinRef.current && mapInstanceRef.current) {
+      mapInstanceRef.current.removeLayer(clickedPinRef.current);
+      clickedPinRef.current = null;
+    }
+    setActivePinCoords(null);
+    setActivePinAddress(null);
+  };
 
   // Evacuation Shelters & OSRM Routing States (API #5)
   const [showShelters, setShowShelters] = useState(true);
@@ -201,6 +212,18 @@ export default function DisasterMap({
           ">
             🚨 Report Emergency Here
           </button>
+          <button id="btn-clear-dropped-pin" style="
+            width: 100%;
+            background: rgba(255, 255, 255, 0.08);
+            color: #cbd5e1;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 11px;
+            cursor: pointer;
+          ">
+            ❌ Clear Landmark Pin
+          </button>
         </div>
       `;
 
@@ -208,6 +231,10 @@ export default function DisasterMap({
         if (onOpenReportWithLocation) {
           onOpenReportWithLocation(lat, lng, resolvedAddress);
         }
+      };
+
+      popupContent.querySelector('#btn-clear-dropped-pin').onclick = () => {
+        handleClearPin();
       };
 
       popupContent.querySelector('#btn-evacuate-pin').onclick = () => {
@@ -458,15 +485,36 @@ export default function DisasterMap({
 
       const marker = L.marker([inc.latitude, inc.longitude], { icon: customIcon });
 
+      const incDate = inc.created_at ? new Date(inc.created_at) : null;
+      const formattedDate = incDate && !isNaN(incDate.getTime())
+        ? incDate.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit'
+          })
+        : 'Recent';
+
+      const isToday = incDate && !isNaN(incDate.getTime()) && (
+        incDate.getFullYear() === new Date().getFullYear() &&
+        incDate.getMonth() === new Date().getMonth() &&
+        incDate.getDate() === new Date().getDate()
+      );
+
       const popupDiv = document.createElement('div');
-      popupDiv.style.minWidth = '240px';
+      popupDiv.style.minWidth = '250px';
       popupDiv.style.padding = '4px';
       popupDiv.innerHTML = `
-        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px;">
           <span style="background: ${color}25; color: ${color}; border: 1px solid ${color}50; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; text-transform: uppercase;">
             ${inc.urgency || 'Medium'} Urgency
           </span>
           <span style="font-size: 11px; color: #94a3b8;">${inc.status || 'Open'}</span>
+        </div>
+        <div style="font-size: 11px; color: #94a3b8; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 4px;">
+          <span>📅 ${formattedDate}</span>
+          ${isToday ? '<span style="background: rgba(16,185,129,0.25); color: #34d399; border: 1px solid rgba(16,185,129,0.5); padding: 1px 6px; border-radius: 8px; font-size: 9px; font-weight: bold;">TODAY</span>' : '<span style="background: rgba(148,163,184,0.15); color: #94a3b8; padding: 1px 6px; border-radius: 8px; font-size: 9px;">ARCHIVED</span>'}
         </div>
         <h4 style="margin: 0 0 6px 0; color: #f8fafc; font-size: 15px; font-weight: 700;">${inc.title}</h4>
         <p style="margin: 0 0 8px 0; color: #cbd5e1; font-size: 12px; line-height: 1.4;">${inc.description || 'No description provided'}</p>
@@ -573,6 +621,19 @@ export default function DisasterMap({
 
       {/* Floating Action Controls on Top-Right */}
       <div className="map-top-actions">
+        {/* Clear Dropped Landmark Pin Button */}
+        {activePinCoords && (
+          <button
+            type="button"
+            className="gmaps-clear-pin-btn"
+            onClick={handleClearPin}
+            title="Clear dropped landmark pin from the map"
+          >
+            <X size={14} />
+            <span>Clear Landmark Pin</span>
+          </button>
+        )}
+
         {/* Toggle All Evacuation Areas Button */}
         <button
           type="button"
@@ -668,7 +729,9 @@ export default function DisasterMap({
 
       {/* Map Helper Badge */}
       <div className="map-hint-badge">
-        <span>💡 Click anywhere on map to view nearest evacuation center & road route</span>
+        <span>
+          📅 {dateFilter === 'today' ? "Showing Today's Landmarks (Daily Reset Active)" : dateFilter === '24h' ? "Showing Landmarks from Past 24 Hours" : dateFilter === 'custom' ? "Showing Landmarks for Selected Date" : "Showing All Historical Landmarks"} • Click anywhere on map to view nearest evacuation center & road route
+        </span>
       </div>
     </div>
   );

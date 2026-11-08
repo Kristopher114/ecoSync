@@ -38,6 +38,9 @@ The system features **two distinct user roles**:
   - **GPS "Locate Me" Button**: One-click device geolocation centering.
   - **Click-to-Drop Landmark Pin**: Clicking anywhere on the map drops an animated red Google-style pin 📍. It automatically calls OpenStreetMap's reverse-geocoding API to resolve the exact street/barangay name and displays it in an on-map popup with a direct `🚨 Report Emergency Here` button.
   - **Live Urgency Pins**: Existing incidents are displayed as custom pins color-coded by severity (Critical = pulsing crimson, High = orange, Medium = amber, Low = emerald).
+  - **Daily Landmark Auto-Reset & Clutter Prevention**: Live map automatically resets each day at midnight (00:00) to show only today's emergencies, preventing old landmarks from cluttering the map. Includes a date filter bar (`Today (Auto-Reset)`, `Past 24h`, `Custom Date Picker`, `All Time`).
+  - **One-Click Landmark Pin Dismissal (`Clear Landmark Pin`)**: Clicking anywhere drops a landmark pin with instant options to report, route, or dismiss (`Clear Landmark Pin`) without reloading the page.
+  - **Timestamped Landmark Popups**: Every marker popup displays its exact report date and time with a high-visibility `TODAY` or `ARCHIVED` tag.
 
 ### 3. `frontend/src/components/ReportModal.jsx`
 
@@ -155,6 +158,7 @@ The system features **two distinct user roles**:
 | **9** | Mock Disaster News Items | News items were static hardcoded cards. | Integrated live Disaster News Wire (`/api/news`) fetching real-time headlines with clickable source links. |
 | **10** | Missing Emergency Alert Dispatch (Comms) | No external alert transmission channel existed for urgent incidents. | Implemented API #5 Volunteer Dispatch Grid (`/api/alerts/dispatch`), an interactive drill broadcast trigger, and an Admin Dispatch Console. |
 | **11** | Institutional Google Account blocks SMTP App Passwords | School/organization Google accounts (`@my.smciligan.edu.ph`) restrict third-party App Passwords under corporate security policies. | Elevated API #5 to **Safe Evacuation Routing & Shelter Navigation (OSRM Engine)**. Provides life-saving road navigation, shelter occupancy tracking, and walking/driving ETAs directly on the interactive map with 100% free, zero-credential open routing infrastructure. |
+| **12** | Map cluttered with stale landmarks and historical incidents | Over continuous usage, incident markers from previous days accumulated on the map, making it difficult for responders to identify active emergencies. | Engineered a **Daily Landmark Auto-Reset & Date Filtering Engine**. By default, the map automatically resets daily to display only today's emergency landmarks (with a midnight auto-reset clock), provides date filters (`Past 24h`, `Custom Date`, `All Time`), allows one-click pinned landmark dismissal (`Clear Landmark Pin`), and gives admins a one-click Daily Maintenance archive tool. |
 
 ---
 

@@ -15,6 +15,27 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
   const [isLoadingShelters, setIsLoadingShelters] = useState(false);
   const [isSimulatingRoute, setIsSimulatingRoute] = useState(false);
   const [routeToast, setRouteToast] = useState('');
+  const [isResettingDaily, setIsResettingDaily] = useState(false);
+  const [resetToast, setResetToast] = useState('');
+
+  const handleDailyResetMaintenance = async () => {
+    setIsResettingDaily(true);
+    setResetToast('');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/incidents/reset-daily`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setResetToast(`🧹 ${data.message || 'Daily map maintenance complete.'}`);
+        setTimeout(() => setResetToast(''), 7000);
+      }
+    } catch (err) {
+      alert('Daily reset error: ' + err.message);
+    } finally {
+      setIsResettingDaily(false);
+    }
+  };
 
   // Fetch Evacuation Shelters from Backend
   const fetchShelters = async () => {
@@ -382,7 +403,19 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
             <p className="text-muted text-sm">Resolve active emergencies or purge false alarms</p>
           </div>
 
-          <div className="filter-button-group">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              className="btn-daily-reset-admin"
+              onClick={handleDailyResetMaintenance}
+              disabled={isResettingDaily}
+              title="Archives previous days' open incidents so the live map stays uncluttered"
+            >
+              <Clock size={13} />
+              <span>{isResettingDaily ? 'Archiving...' : '🧹 Run Daily Map Reset'}</span>
+            </button>
+
+            <div className="filter-button-group">
             {['All', 'Open', 'In Progress', 'Resolved'].map(st => (
               <button
                 key={st}
@@ -392,8 +425,16 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
                 {st}
               </button>
             ))}
+            </div>
           </div>
         </div>
+
+        {resetToast && (
+          <div className="dispatch-toast-banner" style={{ background: 'rgba(16, 185, 129, 0.15)', borderColor: 'rgba(16, 185, 129, 0.4)', color: '#6ee7b7', margin: '0 16px 12px 16px' }}>
+            <CheckCircle2 size={16} className="text-emerald" />
+            <span>{resetToast}</span>
+          </div>
+        )}
 
         <div className="table-responsive">
           <table className="admin-table">
@@ -404,6 +445,7 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
                 <th>Category</th>
                 <th>Urgency</th>
                 <th>Location</th>
+                <th>Reported Date</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -435,6 +477,33 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
                     </td>
                     <td className="text-sm text-muted">
                       {inc.location_name || `${inc.latitude?.toFixed(2)}, ${inc.longitude?.toFixed(2)}`}
+                    </td>
+                    <td>
+                      {(() => {
+                        const incDate = inc.created_at ? new Date(inc.created_at) : null;
+                        const formatted = incDate && !isNaN(incDate.getTime())
+                          ? incDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                          : 'Recent';
+                        const isToday = incDate && !isNaN(incDate.getTime()) && (
+                          incDate.getFullYear() === new Date().getFullYear() &&
+                          incDate.getMonth() === new Date().getMonth() &&
+                          incDate.getDate() === new Date().getDate()
+                        );
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <span className="text-xs text-light font-medium">{formatted}</span>
+                            {isToday ? (
+                              <span style={{ background: 'rgba(16,185,129,0.2)', color: '#34d399', fontSize: '9px', fontWeight: 'bold', padding: '1px 5px', borderRadius: '4px', width: 'fit-content' }}>
+                                TODAY
+                              </span>
+                            ) : (
+                              <span style={{ background: 'rgba(148,163,184,0.15)', color: '#94a3b8', fontSize: '9px', padding: '1px 5px', borderRadius: '4px', width: 'fit-content' }}>
+                                ARCHIVED
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td>
                       <select

@@ -12,7 +12,8 @@ const {
   getIncidentById,
   createIncidentRecord,
   updateIncidentRecord,
-  deleteIncidentRecord
+  deleteIncidentRecord,
+  resetDailyIncidents
 } = require('./incidentsStore');
 const { EVACUATION_SHELTERS, getNearestEvacuationRoute } = require('./routing');
 
@@ -72,11 +73,22 @@ app.post('/api/auth/login', async (req, res) => {
 
 // --- INCIDENTS CRUD ROUTES (with resilient self-healing storage) ---
 
-// 1. GET ALL INCIDENTS
+// 1. GET ALL INCIDENTS (Supports ?timeframe=today|24h|all and ?date=YYYY-MM-DD for daily map resets)
 app.get('/api/incidents', async (req, res) => {
   try {
-    const data = await getAllIncidents();
+    const { timeframe, date } = req.query;
+    const data = await getAllIncidents({ timeframe, date });
     res.status(200).json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DAILY MAP RESET ENDPOINT (Archives older open incidents to avoid cluttering the live map)
+app.post('/api/incidents/reset-daily', async (req, res) => {
+  try {
+    const result = await resetDailyIncidents();
+    res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

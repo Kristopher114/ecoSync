@@ -84,7 +84,8 @@ function saveLocalIncidents(incidents) {
   }
 }
 
-async function getAllIncidents() {
+async function getAllIncidents(filter = {}) {
+  let all = [];
   try {
     const { data, error } = await supabase
       .from('incidents')
@@ -96,14 +97,66 @@ async function getAllIncidents() {
       if (data.length > 0) {
         saveLocalIncidents(data);
       }
-      return data;
+      all = data;
+    } else {
+      all = getLocalIncidents();
     }
   } catch (supabaseErr) {
     console.warn('Supabase unavailable (project may be paused), using local storage:', supabaseErr.message);
+    all = getLocalIncidents();
   }
 
-  // Graceful fallback to local storage
-  return getLocalIncidents();
+  if (filter.timeframe === 'today') {
+    const today = new Date();
+    return all.filter(inc => {
+      if (!inc.created_at) return false;
+      const d = new Date(inc.created_at);
+      return d.getFullYear() === today.getFullYear() &&
+             d.getMonth() === today.getMonth() &&
+             d.getDate() === today.getDate();
+    });
+  }
+
+  if (filter.timeframe === '24h') {
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    return all.filter(inc => {
+      if (!inc.created_at) return false;
+      return new Date(inc.created_at).getTime() >= cutoff;
+    });
+  }
+
+  if (filter.date) {
+    return all.filter(inc => {
+      if (!inc.created_at) return false;
+      const d = new Date(inc.created_at);
+      const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      return ymd === filter.date;
+    });
+  }
+
+  return all;
+}
+
+async function resetDailyIncidents() {
+  const local = getLocalIncidents();
+  const todayStr = new Date().toISOString().slice(0, 10);
+  
+  let resetCount = 0;
+  const updated = local.map(inc => {
+    const incDateStr = inc.created_at ? inc.created_at.slice(0, 10) : '';
+    if (incDateStr && incDateStr < todayStr && inc.status === 'Open') {
+      resetCount++;
+      return { ...inc, status: 'Resolved', updated_at: new Date().toISOString() };
+    }
+    return inc;
+  });
+
+  saveLocalIncidents(updated);
+  return {
+    success: true,
+    resetCount,
+    message: `Daily map maintenance complete: ${resetCount} older incident(s) archived.`
+  };
 }
 
 async function getIncidentById(id) {
@@ -224,6 +277,7 @@ module.exports = {
   getIncidentById,
   createIncidentRecord,
   updateIncidentRecord,
-  deleteIncidentRecord
+  deleteIncidentRecord,
+  resetDailyIncidents
 };
 
