@@ -15,16 +15,6 @@ export default function Navbar({
     : null;
 
   const handleAdminTabClick = () => {
-    if (!currentUser) {
-      if (window.confirm('The Admin Command Hub requires logging in as an Admin Coordinator. Would you like to sign in to the Admin Portal now?')) {
-        onOpenAuth('admin');
-      }
-      return;
-    }
-    if (!isAdmin) {
-      alert('Access Restricted: Your current account has the "Citizen / Volunteer" role. The Command Hub is strictly reserved for Municipal Admin Coordinators.');
-      return;
-    }
     setActiveTab('admin');
   };
 

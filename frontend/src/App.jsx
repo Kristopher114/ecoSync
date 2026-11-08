@@ -46,9 +46,10 @@ export default function App() {
           return parsed;
         }
         if (parsed.role === 'admin' && (!parsed.municipality || parsed.municipality === 'ALL')) {
-          // Remove any admin account that has no specific municipality jurisdiction
-          localStorage.removeItem('ecosync_user');
-          return null;
+          parsed.municipality = 'KAPATAGAN';
+          parsed.municipality_name = 'Kapatagan';
+          localStorage.setItem('ecosync_user', JSON.stringify(parsed));
+          return parsed;
         }
       }
       return parsed;
@@ -639,7 +640,7 @@ export default function App() {
                 </p>
                 <button
                   className="btn-primary"
-                  onClick={() => setIsAuthOpen(true)}
+                  onClick={() => handleOpenAuth('admin')}
                   style={{ marginTop: '16px' }}
                 >
                   <UserPlus size={16} />

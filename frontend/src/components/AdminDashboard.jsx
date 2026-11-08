@@ -15,12 +15,12 @@ import {
 } from '../municipalities';
 
 export default function AdminDashboard({
-  incidents,
+  incidents = [],
   onUpdateStatus,
   onDeleteIncident,
   assignedMunicipality = null,
   currentUser = null,
-  shelters: externalShelters,
+  shelters: externalShelters = [],
   onAddShelter,
   onDeleteShelter,
   onRefreshShelters
