@@ -402,7 +402,7 @@ export default function AdminDashboard({
                   </h4>
                   <p className="text-muted text-sm">
                     {assignedMuniObj
-                      ? `Showing only emergency reports within your assigned jurisdiction (${assignedMuniObj.name})`
+                      ? `Showing only emergency reports within your assigned municipality (${assignedMuniObj.name})`
                       : 'Resolve active emergencies, update triage status, or purge false alarms'}
                   </p>
                 </div>
@@ -742,7 +742,7 @@ export default function AdminDashboard({
                 </div>
                 <div className="bar-chart-list">
                   {Object.entries(categoryCounts).length === 0 ? (
-                    <p className="text-muted text-sm py-4">No incidents recorded in this jurisdiction yet.</p>
+                    <p className="text-muted text-sm py-4">No incidents recorded in this place yet.</p>
                   ) : (
                     Object.entries(categoryCounts).map(([category, count]) => {
                       const pct = totalIncidents > 0 ? Math.round((count / totalIncidents) * 100) : 0;

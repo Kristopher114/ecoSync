@@ -247,7 +247,7 @@ export default function WeatherWidget({
             )}
             {lockedMunicipality ? (
               <option value={selectedMuniObj.id}>
-                🔒 {selectedMuniObj.name} (Admin Jurisdiction)
+                🔒 {selectedMuniObj.name}
               </option>
             ) : (
               LANAO_DEL_NORTE_MUNICIPALITIES.map((m) => (
