@@ -2,69 +2,66 @@ import React, { useState, useEffect } from 'react';
 import {
   ShieldAlert, CheckCircle, Clock, Trash2, Edit3,
   Users, BarChart2, AlertTriangle, Flame, Droplets, HeartPulse,
-  Radio, Send, RefreshCw, BellRing, CheckCircle2, ShieldCheck, Mail
+  Send, RefreshCw, BellRing, CheckCircle2, ShieldCheck,
+  Compass, Shield, MapPin, Navigation, Car, Bed
 } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 
 export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteIncident }) {
   const [filterStatus, setFilterStatus] = useState('All');
-  
-  // Emergency Alert Dispatch Comms API (API #5)
-  const [dispatchLogs, setDispatchLogs] = useState([]);
-  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
-  const [isDispatchingDrill, setIsDispatchingDrill] = useState(false);
-  const [dispatchToast, setDispatchToast] = useState('');
 
-  // Fetch dispatch transmission logs from backend
-  const fetchDispatchLogs = async () => {
-    setIsLoadingLogs(true);
+  // Safe Evacuation Centers & OSRM Routing API (API #5)
+  const [shelters, setShelters] = useState([]);
+  const [isLoadingShelters, setIsLoadingShelters] = useState(false);
+  const [isSimulatingRoute, setIsSimulatingRoute] = useState(false);
+  const [routeToast, setRouteToast] = useState('');
+
+  // Fetch Evacuation Shelters from Backend
+  const fetchShelters = async () => {
+    setIsLoadingShelters(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/alerts/logs`);
+      const res = await fetch(`${API_BASE_URL}/api/evacuation-shelters`);
       if (res.ok) {
         const data = await res.json();
-        setDispatchLogs(data);
+        setShelters(data);
       }
     } catch (err) {
-      console.warn('Failed to fetch dispatch logs:', err.message);
+      console.warn('Failed to fetch evacuation shelters:', err.message);
     } finally {
-      setIsLoadingLogs(false);
+      setIsLoadingShelters(false);
     }
   };
 
   useEffect(() => {
-    fetchDispatchLogs();
+    fetchShelters();
   }, []);
 
-  // Trigger automated drill / emergency broadcast test (demonstrates API #5 live)
-  const handleTriggerDrill = async () => {
-    setIsDispatchingDrill(true);
-    setDispatchToast('');
-
-    const drillPayload = {
-      title: 'Rapid Evacuation & Resource Mobilization Drill',
-      category: 'Flood',
-      urgency: 'Critical',
-      location_name: 'Poblacion Riverside Sector 4',
-      actionable_needs: ['Rubber Rescue Boats', 'Emergency Rations', 'First Aid Kits']
-    };
+  // Simulate OSRM road evacuation route calculation live
+  const handleSimulateRoute = async (shelter) => {
+    setIsSimulatingRoute(true);
+    setRouteToast('');
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/alerts/dispatch`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(drillPayload)
-      });
+      const startLat = 8.2250;
+      const startLng = 124.2400;
+      const destLat = shelter ? shelter.latitude : null;
+      const destLng = shelter ? shelter.longitude : null;
 
+      let url = `${API_BASE_URL}/api/evacuation-route?startLat=${startLat}&startLng=${startLng}&mode=driving`;
+      if (destLat && destLng) {
+        url += `&destLat=${destLat}&destLng=${destLng}`;
+      }
+
+      const res = await fetch(url);
       if (res.ok) {
-        const result = await res.json();
-        setDispatchToast(result.message || 'Emergency Alert Dispatched Successfully!');
-        fetchDispatchLogs();
-        setTimeout(() => setDispatchToast(''), 6000);
+        const data = await res.json();
+        setRouteToast(`✅ OSRM Street Route Verified: ${data.distance_km} km to ${data.shelter?.name} (${data.duration_mins} mins travel time)`);
+        setTimeout(() => setRouteToast(''), 8000);
       }
     } catch (err) {
-      alert('Dispatch failed: ' + err.message);
+      alert('Routing simulation failed: ' + err.message);
     } finally {
-      setIsDispatchingDrill(false);
+      setIsSimulatingRoute(false);
     }
   };
 
@@ -73,11 +70,12 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
   const criticalCount = incidents.filter(i => i.urgency === 'Critical' && i.status !== 'Resolved').length;
   const inProgressCount = incidents.filter(i => i.status === 'In Progress').length;
   const resolvedCount = incidents.filter(i => i.status === 'Resolved').length;
-  const openCount = incidents.filter(i => i.status === 'Open').length;
 
-  // Total volunteer alert transmissions
-  const totalAlertsCount = dispatchLogs.length;
-  const totalVolunteersAlerted = dispatchLogs.reduce((acc, curr) => acc + (curr.recipients_count || 0), 0);
+  // Evacuation capacity calculations
+  const totalShelterCapacity = shelters.reduce((acc, curr) => acc + (curr.total_capacity || 0), 0);
+  const totalOccupancy = shelters.reduce((acc, curr) => acc + (curr.current_occupancy || 0), 0);
+  const availableCots = totalShelterCapacity - totalOccupancy;
+  const occupancyPct = totalShelterCapacity > 0 ? Math.round((totalOccupancy / totalShelterCapacity) * 100) : 0;
 
   // Category counts for charts
   const categoryCounts = incidents.reduce((acc, curr) => {
@@ -220,18 +218,20 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
         </div>
       </div>
 
-      {/* EMERGENCY ALERT DISPATCH & VOLUNTEER COMMS CONSOLE (API #5) */}
+      {/* SAFE EVACUATION SHELTERS & OSRM ROUTE NAVIGATION CONSOLE (API #5) */}
       <div className="dispatch-card glass-panel">
         <div className="dispatch-header">
           <div className="dispatch-title-left">
-            <Radio size={20} className="text-cyan pulse-icon" />
+            <Compass size={22} className="text-cyan pulse-icon" />
             <div>
               <div className="dispatch-title-row">
-                <h4>Emergency Alert Dispatch & Volunteer Comms Console</h4>
-                <span className="api-chip-badge">API #5: EmailJS / SendGrid Grid</span>
+                <h4>Designated Evacuation Shelters & Safe Route Readiness</h4>
+                <span className="api-chip-badge" style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', borderColor: 'rgba(16, 185, 129, 0.4)' }}>
+                  API #5: OSRM Routing Engine
+                </span>
               </div>
               <p className="text-muted text-xs">
-                Real-time outbound broadcast network routing critical incident alerts to volunteer responder squads
+                Active municipal emergency shelters, live occupancy capacities, and turn-by-turn road evacuation routes
               </p>
             </div>
           </div>
@@ -239,114 +239,135 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
           <div className="dispatch-actions">
             <button
               className="btn-refresh-dispatch"
-              onClick={fetchDispatchLogs}
-              title="Refresh Transmission History"
-              disabled={isLoadingLogs}
+              onClick={fetchShelters}
+              title="Refresh Shelter Capacities"
+              disabled={isLoadingShelters}
             >
-              <RefreshCw size={14} className={isLoadingLogs ? 'spin' : ''} />
+              <RefreshCw size={14} className={isLoadingShelters ? 'spin' : ''} />
               <span>Refresh</span>
             </button>
             <button
               id="btn-trigger-drill"
               className="btn-drill-dispatch"
-              onClick={handleTriggerDrill}
-              disabled={isDispatchingDrill}
+              style={{ background: 'linear-gradient(135deg, #06b6d4, #0284c7)', borderColor: 'rgba(6, 182, 212, 0.5)' }}
+              onClick={() => handleSimulateRoute(shelters[0])}
+              disabled={isSimulatingRoute || shelters.length === 0}
             >
-              <Send size={14} className={isDispatchingDrill ? 'spin' : ''} />
-              <span>{isDispatchingDrill ? 'Transmitting...' : '🚨 Trigger Emergency Broadcast Drill'}</span>
+              <Navigation size={14} className={isSimulatingRoute ? 'spin' : ''} />
+              <span>{isSimulatingRoute ? 'Routing...' : '🧭 Test Safe Road Route (OSRM)'}</span>
             </button>
           </div>
         </div>
 
-        {/* Dispatch Confirmation Banner */}
-        {dispatchToast && (
-          <div className="dispatch-toast-banner">
-            <CheckCircle2 size={16} className="text-emerald" />
-            <span>{dispatchToast}</span>
+        {/* Route Toast Confirmation Banner */}
+        {routeToast && (
+          <div className="dispatch-toast-banner" style={{ background: 'rgba(6, 182, 212, 0.15)', borderColor: 'rgba(6, 182, 212, 0.4)', color: '#7dd3fc' }}>
+            <CheckCircle2 size={16} className="text-cyan" />
+            <span>{routeToast}</span>
           </div>
         )}
 
-        {/* Mini Comms KPI Strip */}
+        {/* Shelter Metrics Strip */}
         <div className="comms-kpi-strip">
           <div className="comms-kpi-item">
-            <span className="comms-kpi-label">Dispatched Transmissions</span>
-            <span className="comms-kpi-val text-cyan">{totalAlertsCount}</span>
+            <span className="comms-kpi-label">Active Evacuation Hubs</span>
+            <span className="comms-kpi-val text-cyan">{shelters.length} Shelters</span>
           </div>
           <div className="comms-kpi-item">
-            <span className="comms-kpi-label">Volunteers Alerted</span>
-            <span className="comms-kpi-val text-emerald">{totalVolunteersAlerted}</span>
+            <span className="comms-kpi-label">Total Cots Capacity</span>
+            <span className="comms-kpi-val text-light">{totalShelterCapacity} Cots</span>
           </div>
           <div className="comms-kpi-item">
-            <span className="comms-kpi-label">Comms Delivery Rate</span>
-            <span className="comms-kpi-val text-emerald">100% Confirmed</span>
+            <span className="comms-kpi-label">Available Cots / Beds</span>
+            <span className="comms-kpi-val text-emerald">{availableCots} Available</span>
           </div>
           <div className="comms-kpi-item">
-            <span className="comms-kpi-label">Primary Dispatch Gateways</span>
-            <span className="comms-kpi-val text-amber">Email Broadcast + SMS Wire</span>
+            <span className="comms-kpi-label">Overall City Occupancy</span>
+            <span className="comms-kpi-val text-amber">{occupancyPct}% ({totalOccupancy} Evacuees)</span>
           </div>
         </div>
 
-        {/* Dispatch Transmission Log Table */}
+        {/* Evacuation Shelters Directory Table */}
         <div className="table-responsive" style={{ marginTop: '12px' }}>
           <table className="admin-table">
             <thead>
               <tr>
-                <th>Alert ID</th>
-                <th>Incident & Location</th>
-                <th>Target Volunteer Squad</th>
-                <th>Recipients</th>
-                <th>Actionable Needs</th>
-                <th>Channel</th>
+                <th>Shelter ID</th>
+                <th>Shelter & Address</th>
+                <th>Type</th>
+                <th>Elevation / Hazard Risk</th>
+                <th>Live Occupancy</th>
+                <th>Key Resources</th>
                 <th>Status</th>
-                <th>Dispatched</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              {dispatchLogs.length === 0 ? (
+              {shelters.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="text-center py-6 text-muted">
-                    No emergency broadcasts dispatched yet. Click "Trigger Emergency Broadcast Drill" to test.
+                    Loading designated evacuation shelters...
                   </td>
                 </tr>
               ) : (
-                dispatchLogs.map((log) => (
-                  <tr key={log.id}>
-                    <td className="font-mono text-cyan" style={{ fontWeight: 600 }}>{log.id}</td>
-                    <td>
-                      <div className="incident-table-cell">
-                        <strong>{log.incident_title}</strong>
-                        <span className="text-muted text-xs">{log.location}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <span className="target-squad-badge">{log.recipient_group}</span>
-                    </td>
-                    <td>
-                      <span className="text-sm" style={{ color: '#e2e8f0', fontWeight: 600 }}>
-                        {log.recipients_count} volunteers
-                      </span>
-                    </td>
-                    <td>
-                      <div className="needs-chip-list">
-                        {(log.actionable_needs || ['Rapid Assessment']).map((need, idx) => (
-                          <span key={idx} className="need-chip-sm">⚡ {need}</span>
-                        ))}
-                      </div>
-                    </td>
-                    <td>
-                      <span className="text-xs text-dim">{log.channel}</span>
-                    </td>
-                    <td>
-                      <span className="status-pill-delivered">
-                        <span className="status-dot-emerald"></span>
-                        {log.status || 'Delivered'}
-                      </span>
-                    </td>
-                    <td className="text-xs text-dim">
-                      {log.dispatched_at ? new Date(log.dispatched_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently'}
-                    </td>
-                  </tr>
-                ))
+                shelters.map((shelter) => {
+                  const pct = Math.round((shelter.current_occupancy / shelter.total_capacity) * 100);
+                  return (
+                    <tr key={shelter.id}>
+                      <td className="font-mono text-cyan" style={{ fontWeight: 600 }}>{shelter.id}</td>
+                      <td>
+                        <div className="incident-table-cell">
+                          <strong>{shelter.name}</strong>
+                          <span className="text-muted text-xs">{shelter.address}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="target-squad-badge" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', borderColor: 'rgba(16, 185, 129, 0.3)' }}>
+                          {shelter.type}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="text-xs text-dim" style={{ color: '#a7f3d0' }}>
+                          ⛰️ {shelter.elevation}
+                        </span>
+                      </td>
+                      <td style={{ minWidth: '140px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <span className="text-xs" style={{ color: '#e2e8f0', fontWeight: 600 }}>
+                            {shelter.current_occupancy} / {shelter.total_capacity} ({pct}%)
+                          </span>
+                          <div style={{ height: '5px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                            <div style={{ width: `${pct}%`, height: '100%', background: pct > 80 ? '#ef4444' : pct > 60 ? '#f59e0b' : '#10b981' }}></div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="needs-chip-list">
+                          {(shelter.amenities || []).slice(0, 2).map((am, idx) => (
+                            <span key={idx} className="need-chip-sm">⚡ {am}</span>
+                          ))}
+                        </div>
+                      </td>
+                      <td>
+                        <span className="status-pill-delivered">
+                          <span className="status-dot-emerald"></span>
+                          {shelter.status.split(' ')[0]}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          className="btn-refresh-dispatch"
+                          style={{ padding: '4px 10px', fontSize: '0.72rem' }}
+                          onClick={() => handleSimulateRoute(shelter)}
+                          title="Simulate OSRM road route to this center"
+                        >
+                          <Navigation size={12} className="text-cyan" />
+                          <span>Test Route</span>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

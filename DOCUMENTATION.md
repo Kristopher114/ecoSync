@@ -1,6 +1,6 @@
 # EcoSync — Project Development & Technical Documentation
 
-> **Last Updated:** October 11, 2026 — 21:54:04 (PHT)  
+> **Last Updated:** November 8, 2026 — 15:30:00 (PHT)
 > **Project:** EcoSync: Community Disaster & Relief Coordinator  
 > **Stack:** React 19 (Vite) + Node.js (Express) + Supabase (PostgreSQL & Auth) + Google Gemini AI + Leaflet.js / OpenStreetMap  
 
@@ -75,13 +75,15 @@ The system features **two distinct user roles**:
   - **API #1: Live Weather Radar (Open-Meteo)**: Dynamic weather metrics (temperature, condition, feels like, wind speed/direction, humidity, rainfall rate) and real-time storm hazard advisories (*Low / Yellow / High / Critical*) that update when dropping pins or selecting incidents on the map.
   - **API #4: Live Disaster News Wire (GNews / Real-Time Meteorological RSS Wire)**: Live streaming headlines of recent typhoons, flood alerts, earthquakes, and emergency bulletins fetched with 10-minute cache and external source links.
 
-### 7. `frontend/src/components/AdminDashboard.jsx` (Emergency Alert Dispatch Console - API #5)
+### 7. `frontend/src/components/AdminDashboard.jsx` & `DisasterMap.jsx` (Safe Evacuation Shelters & OSRM Navigation - API #5)
 
-- **Functionality**: Real-time volunteer alert transmission hub and triage analytics.
+- **Functionality**: Real-time emergency evacuation center directory and live turn-by-turn road routing navigation powered by the Open Source Routing Machine (OSRM).
 - **Features**:
-  - **API #5: Emergency Alert Dispatch & Volunteer Comms Console**: Live broadcast transmission logs routing critical emergencies to targeted responder units (e.g. *Search & Rescue Rapid Response Unit*, *Medical First Responders*).
-  - **Interactive Drill Trigger**: "🚨 Trigger Emergency Broadcast Drill" button allowing evaluators to simulate and confirm live outbound broadcasts on demand.
-  - **Global Alert Banner**: Instant high-urgency broadcast alerts displayed dynamically across the platform.
+  - **API #5: Safe Evacuation Routing & Shelter Directory (OSRM Engine)**: Real-time turn-by-turn road routing between any map point (or incident) and designated evacuation facilities.
+  - **"View All Evacuation Centers" Toggle**: Displays verified regional shelters on the map with custom emerald shield markers (`🛡️` / `🏥`), capacity progress meters, and amenity tags (Power, Medical, Food/Water).
+  - **Live Evacuation Navigation HUD**: Floating HUD on the map showing destination shelter name, real-time road distance in kilometers, estimated travel time (ETA in minutes), next turn step instruction, and dynamic Driving vs. Walking mode toggles.
+  - **Admin Shelters & Readiness Console**: Direct monitoring grid in the Admin Command Hub showing active shelter occupancies, capacities, addresses, and an interactive "Test Safe Road Route" action.
+
 
 ---
 
@@ -105,7 +107,10 @@ The system features **two distinct user roles**:
   - `GET /api/weather`: Queries Open-Meteo meteorological feed with 5-minute caching and hazard assessment.
 - **Live Disaster News Wire Endpoint (API #4)**:
   - `GET /api/news`: Fetches live disaster headlines via GNews API and real-time meteorological RSS feed.
-- **Emergency Alert Dispatch Endpoints (API #5)**:
+- **Safe Evacuation Routing Endpoints (API #5 - OSRM Engine)**:
+  - `GET /api/evacuation-shelters`: Retrieves active regional evacuation shelters with capacities and amenities.
+  - `GET /api/evacuation-route`: Calculates optimal road polyline, distance in km, duration in mins, and step instructions (driving/walking).
+- **Emergency Alert Dispatch Endpoints (Legacy Comms)**:
   - `GET /api/alerts/logs`: Retrieves persistent broadcast transmission history.
   - `POST /api/alerts/dispatch`: Triggers emergency alerts with volunteer counts and multi-channel delivery.
 
@@ -125,10 +130,13 @@ The system features **two distinct user roles**:
 - Fetches real-time disaster headlines regarding typhoons, floods, earthquakes, and emergency bulletins.
 - Caches responses in memory for 10 minutes to prevent rate limiting.
 
-### 5. `backend/comms.js` (API #5)
+### 5. `backend/routing.js` (API #5 - OSRM Evacuation Routing Engine)
 
-- Manages outbound emergency broadcast transmissions to volunteer responder units.
-- Generates alert IDs, assigns target squads based on disaster category, and logs history in `dispatch_logs.json`.
+- Integrates with the **Open Source Routing Machine (OSRM)** public routing API (`router.project-osrm.org`) for zero-cost, high-speed road network navigation.
+- Computes real-time road geometries (GeoJSON coordinates), road distance (in km), and travel duration (in minutes) for both `driving` and `walking` modes.
+- Maintains a live directory of 5 designated regional evacuation shelters with real-time capacity and amenity tagging.
+- Includes automated nearest-shelter resolution using the Haversine formula and a fail-safe fallback router to guarantee 100% uptime during presentations if public routing servers encounter network delays.
+
 
 ---
 
@@ -146,6 +154,7 @@ The system features **two distinct user roles**:
 | **8** | Vite Port Collision & Memory Allocation Panic | Two simultaneous Vite instances competing for port 5173 caused memory allocation failure. | Terminated stale background tasks, cleared port locks, and maintained a single dev server instance. |
 | **9** | Mock Disaster News Items | News items were static hardcoded cards. | Integrated live Disaster News Wire (`/api/news`) fetching real-time headlines with clickable source links. |
 | **10** | Missing Emergency Alert Dispatch (Comms) | No external alert transmission channel existed for urgent incidents. | Implemented API #5 Volunteer Dispatch Grid (`/api/alerts/dispatch`), an interactive drill broadcast trigger, and an Admin Dispatch Console. |
+| **11** | Institutional Google Account blocks SMTP App Passwords | School/organization Google accounts (`@my.smciligan.edu.ph`) restrict third-party App Passwords under corporate security policies. | Elevated API #5 to **Safe Evacuation Routing & Shelter Navigation (OSRM Engine)**. Provides life-saving road navigation, shelter occupancy tracking, and walking/driving ETAs directly on the interactive map with 100% free, zero-credential open routing infrastructure. |
 
 ---
 
@@ -159,5 +168,5 @@ The system features **two distinct user roles**:
 - [x] **External API 2 (Geospatial Map & Geocoding)**: Leaflet.js + OpenStreetMap tile server + Nominatim Geocoding REST API (search bar, GPS location, click-to-drop reverse-geocoded pins).
 - [x] **External API 3 (AI Disaster Categorization)**: Google Gemini API (`@google/genai`) for real-time unstructured emergency categorization and actionable needs extraction.
 - [x] **External API 4 (Live Disaster News Wire)**: GNews API & Meteorological RSS News Feed for real-time typhoon, flood, and earthquake headlines.
-- [x] **External API 5 (Emergency Alert Dispatch Comms)**: Outbound Volunteer Comms Grid (EmailJS / SendGrid channel) with automatic high-urgency dispatch and interactive drill broadcasts.
+- [x] **External API 5 (Safe Evacuation Routing & Shelter Navigation API)**: OSRM Open Source Routing Machine (`router.project-osrm.org`) providing turn-by-turn road polyline geometry, distance in km, driving/walking ETAs, nearest shelter calculation, and live interactive map navigation HUD.
 - [x] **System Reliability & Presentation Safety (30 pts)**: Zero-error production build, fail-safe AI parser, intelligent caching, non-scrolling single-view modals.

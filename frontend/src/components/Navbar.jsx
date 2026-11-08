@@ -41,7 +41,7 @@ export default function Navbar({
 
         <div className="live-status-pill">
           <span className="status-dot"></span>
-          <span>5 Live APIs: Radar • Maps • Gemini AI • News Wire • Alert Comms</span>
+          <span>5 Live APIs: Radar • Leaflet Map • Gemini AI • News Wire • OSRM Evacuation Routing</span>
         </div>
       </div>
 

@@ -1,6 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
-import { Search, Navigation, AlertCircle, PlusCircle, Loader2 } from 'lucide-react';
+import {
+  Search, Navigation, AlertCircle, PlusCircle, Loader2,
+  Shield, Compass, X, Car, Footprints, CheckCircle2, MapPin
+} from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 const URGENCY_COLORS = {
   Critical: '#ef4444',
@@ -20,20 +24,46 @@ export default function DisasterMap({
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersLayerRef = useRef(null);
+  const sheltersLayerRef = useRef(null);
+  const routeLayerRef = useRef(null);
   const clickedPinRef = useRef(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [activePinAddress, setActivePinAddress] = useState(null);
+  const [activePinCoords, setActivePinCoords] = useState(null);
 
-  // Initialize Map
+  // Evacuation Shelters & OSRM Routing States (API #5)
+  const [showShelters, setShowShelters] = useState(true);
+  const [shelters, setShelters] = useState([]);
+  const [activeRoute, setActiveRoute] = useState(null);
+  const [isRouting, setIsRouting] = useState(false);
+  const [routingError, setRoutingError] = useState(null);
+
+  // Fetch Evacuation Shelters Directory from Backend
+  useEffect(() => {
+    async function loadShelters() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/evacuation-shelters`);
+        if (res.ok) {
+          const data = await res.json();
+          setShelters(data);
+        }
+      } catch (err) {
+        console.warn('Failed to load evacuation shelters:', err.message);
+      }
+    }
+    loadShelters();
+  }, []);
+
+  // Initialize Leaflet Map
   useEffect(() => {
     if (!mapContainerRef.current) return;
     if (mapInstanceRef.current) return;
 
-    // Default center (e.g. Philippines / Southeast Asia region where Delabaya / Manila is)
-    const defaultLat = 8.1033;
-    const defaultLng = 124.0673;
+    // Default center (Iligan / Northern Mindanao region)
+    const defaultLat = 8.2280;
+    const defaultLng = 124.2450;
 
     const map = L.map(mapContainerRef.current, {
       center: [defaultLat, defaultLng],
@@ -53,29 +83,25 @@ export default function DisasterMap({
       maxZoom: 19
     }).addTo(map);
 
-    const markersGroup = L.layerGroup().addTo(map);
-    markersLayerRef.current = markersGroup;
+    // Groups for layers
+    markersLayerRef.current = L.layerGroup().addTo(map);
+    sheltersLayerRef.current = L.layerGroup().addTo(map);
+    routeLayerRef.current = L.layerGroup().addTo(map);
 
-    // Click handler: acts like Google Maps (drops a pin & shows landmark popup right where clicked)
+    // Map Click Handler: drops a pin & binds report and route actions
     map.on('click', async (e) => {
       const lat = e.latlng.lat;
       const lng = e.latlng.lng;
+      setActivePinCoords({ lat, lng });
 
-      // Remove previous clicked pin if any
       if (clickedPinRef.current) {
         map.removeLayer(clickedPinRef.current);
       }
 
-      // Create a Google-style dropped pin
       const droppedIcon = L.divIcon({
         className: 'google-style-pin',
         html: `
-          <div style="
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          ">
+          <div style="position: relative; display: flex; align-items: center; justify-content: center;">
             <div style="
               width: 32px;
               height: 32px;
@@ -103,7 +129,6 @@ export default function DisasterMap({
       const pinMarker = L.marker([lat, lng], { icon: droppedIcon }).addTo(map);
       clickedPinRef.current = pinMarker;
 
-      // Immediately show "Loading landmark..." popup
       pinMarker.bindPopup(`
         <div style="min-width: 180px; text-align: center; padding: 6px;">
           <div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">📍 Pinned Location</div>
@@ -111,7 +136,6 @@ export default function DisasterMap({
         </div>
       `).openPopup();
 
-      // Reverse geocode via OpenStreetMap Nominatim API
       let resolvedAddress = `Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
       try {
         const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
@@ -126,9 +150,9 @@ export default function DisasterMap({
 
       setActivePinAddress(resolvedAddress);
 
-      // Update popup with landmark address and Google Maps-style report action button
+      // Create Popup with Report & Evacuation Routing Buttons
       const popupContent = document.createElement('div');
-      popupContent.style.minWidth = '220px';
+      popupContent.style.minWidth = '230px';
       popupContent.style.padding = '4px';
       popupContent.innerHTML = `
         <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
@@ -142,29 +166,52 @@ export default function DisasterMap({
         <div style="font-size: 11px; color: #94a3b8; margin-bottom: 10px;">
           Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}
         </div>
-        <button id="btn-report-here" style="
-          width: 100%;
-          background: linear-gradient(135deg, #ef4444, #dc2626);
-          color: white;
-          border: none;
-          padding: 8px 12px;
-          border-radius: 8px;
-          font-weight: bold;
-          font-size: 12px;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-        ">
-          🚨 Report Emergency Here
-        </button>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <button id="btn-evacuate-pin" style="
+            width: 100%;
+            background: linear-gradient(135deg, #06b6d4, #0284c7);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+          ">
+            🧭 Evacuate to Nearest Shelter (OSRM)
+          </button>
+          <button id="btn-report-here" style="
+            width: 100%;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+          ">
+            🚨 Report Emergency Here
+          </button>
+        </div>
       `;
 
       popupContent.querySelector('#btn-report-here').onclick = () => {
         if (onOpenReportWithLocation) {
           onOpenReportWithLocation(lat, lng, resolvedAddress);
         }
+      };
+
+      popupContent.querySelector('#btn-evacuate-pin').onclick = () => {
+        handleEvacuationRoute(lat, lng, null, null, 'driving');
       };
 
       pinMarker.setPopupContent(popupContent);
@@ -183,7 +230,195 @@ export default function DisasterMap({
     };
   }, []);
 
-  // Update Markers for existing reports
+  // Calculate & Draw Real-Time Road Route via OSRM API (API #5)
+  const handleEvacuationRoute = async (startLat, startLng, destLat = null, destLng = null, mode = 'driving') => {
+    if (!mapInstanceRef.current) return;
+    setIsRouting(true);
+    setRoutingError(null);
+
+    try {
+      let queryUrl = `${API_BASE_URL}/api/evacuation-route?startLat=${startLat}&startLng=${startLng}&mode=${mode}`;
+      if (destLat && destLng) {
+        queryUrl += `&destLat=${destLat}&destLng=${destLng}`;
+      }
+
+      const res = await fetch(queryUrl);
+      if (!res.ok) {
+        throw new Error('Routing service returned error');
+      }
+
+      const routeData = await res.json();
+      if (!routeData.success || !routeData.geojson) {
+        throw new Error('Unable to construct route');
+      }
+
+      // Clear existing route line if any
+      if (routeLayerRef.current) {
+        routeLayerRef.current.clearLayers();
+      }
+
+      // Draw stylized road line
+      const routeGeoJson = L.geoJSON(routeData.geojson, {
+        style: {
+          color: '#38bdf8',
+          weight: 6,
+          opacity: 0.95,
+          lineJoin: 'round',
+          lineCap: 'round',
+          dashArray: mode === 'walking' ? '8, 8' : null
+        }
+      }).addTo(routeLayerRef.current);
+
+      // Add animated start and destination pulses
+      const startPulseIcon = L.divIcon({
+        className: 'route-start-pulse',
+        html: `<div style="width:14px;height:14px;background:#38bdf8;border:2px solid #fff;border-radius:50%;box-shadow:0 0 10px #38bdf8;"></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7]
+      });
+      L.marker([startLat, startLng], { icon: startPulseIcon }).addTo(routeLayerRef.current);
+
+      // Zoom map to fit the route
+      mapInstanceRef.current.fitBounds(routeGeoJson.getBounds(), { padding: [50, 50], maxZoom: 16 });
+
+      setActiveRoute({
+        ...routeData,
+        startLat,
+        startLng,
+        destLat,
+        destLng,
+        mode
+      });
+    } catch (err) {
+      console.warn('Evacuation routing error:', err.message);
+      setRoutingError('Could not calculate safe route at this time.');
+    } finally {
+      setIsRouting(false);
+    }
+  };
+
+  // Toggle Travel Mode between Driving and Walking
+  const handleToggleMode = (newMode) => {
+    if (!activeRoute) return;
+    handleEvacuationRoute(
+      activeRoute.startLat,
+      activeRoute.startLng,
+      activeRoute.destLat,
+      activeRoute.destLng,
+      newMode
+    );
+  };
+
+  // Clear Evacuation Route
+  const handleClearRoute = () => {
+    if (routeLayerRef.current) {
+      routeLayerRef.current.clearLayers();
+    }
+    setActiveRoute(null);
+  };
+
+  // Render Evacuation Shelter Markers on Map (Green Shield Icons)
+  useEffect(() => {
+    if (!mapInstanceRef.current || !sheltersLayerRef.current) return;
+
+    sheltersLayerRef.current.clearLayers();
+    if (!showShelters || shelters.length === 0) return;
+
+    shelters.forEach(shelter => {
+      const isHospital = shelter.type.includes('Medical') || shelter.type.includes('Hospital');
+      const shelterIcon = L.divIcon({
+        className: 'shelter-marker-icon',
+        html: `
+          <div style="
+            background: ${isHospital ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'linear-gradient(135deg, #059669 0%, #047857 100%)'};
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 14px rgba(16, 185, 129, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+          ">
+            ${isHospital ? '🏥' : '🛡️'}
+          </div>
+        `,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+        popupAnchor: [0, -18]
+      });
+
+      const marker = L.marker([shelter.latitude, shelter.longitude], { icon: shelterIcon });
+
+      const pctOccupancy = Math.round((shelter.current_occupancy / shelter.total_capacity) * 100);
+      const amenitiesHtml = (shelter.amenities || [])
+        .map(a => `<span style="background: rgba(6, 182, 212, 0.15); color: #38bdf8; border: 1px solid rgba(6, 182, 212, 0.3); padding: 2px 6px; border-radius: 4px; font-size: 10px;">⚡ ${a}</span>`)
+        .join('');
+
+      const popupDiv = document.createElement('div');
+      popupDiv.style.minWidth = '260px';
+      popupDiv.style.padding = '4px';
+      popupDiv.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;">
+          <span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: bold; text-transform: uppercase;">
+            ${shelter.type}
+          </span>
+          <span style="font-size: 11px; color: #10b981; font-weight: 600;">${shelter.status}</span>
+        </div>
+        <h4 style="margin: 0 0 4px 0; color: #f8fafc; font-size: 14px; font-weight: 700;">${shelter.name}</h4>
+        <p style="margin: 0 0 8px 0; color: #94a3b8; font-size: 11px;">📍 ${shelter.address}</p>
+        
+        <div style="background: rgba(255, 255, 255, 0.05); padding: 8px; border-radius: 8px; margin-bottom: 8px;">
+          <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+            <span style="color: #cbd5e1;">Live Cots Capacity</span>
+            <span style="color: #38bdf8; font-weight: bold;">${shelter.current_occupancy} / ${shelter.total_capacity} (${pctOccupancy}%)</span>
+          </div>
+          <div style="height: 6px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; overflow: hidden;">
+            <div style="width: ${pctOccupancy}%; height: 100%; background: ${pctOccupancy > 80 ? '#ef4444' : '#10b981'};"></div>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 10px;">
+          <div style="font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: bold; margin-bottom: 4px;">Available Resources:</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+            ${amenitiesHtml}
+          </div>
+        </div>
+
+        <button id="btn-route-here-${shelter.id}" style="
+          width: 100%;
+          background: linear-gradient(135deg, #10b981, #059669);
+          color: white;
+          border: none;
+          padding: 8px 12px;
+          border-radius: 8px;
+          font-weight: bold;
+          font-size: 12px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+        ">
+          🧭 Navigate to this Evacuation Center
+        </button>
+      `;
+
+      popupDiv.querySelector(`#btn-route-here-${shelter.id}`).onclick = () => {
+        // Use active pin coords or default center as origin
+        const startLat = activePinCoords?.lat || (selectedIncident ? selectedIncident.latitude : 8.2250);
+        const startLng = activePinCoords?.lng || (selectedIncident ? selectedIncident.longitude : 124.2400);
+        handleEvacuationRoute(startLat, startLng, shelter.latitude, shelter.longitude, 'driving');
+      };
+
+      marker.bindPopup(popupDiv);
+      sheltersLayerRef.current.addLayer(marker);
+    });
+  }, [shelters, showShelters, activePinCoords, selectedIncident]);
+
+  // Update Incident Markers
   useEffect(() => {
     if (!mapInstanceRef.current || !markersLayerRef.current) return;
 
@@ -223,23 +458,45 @@ export default function DisasterMap({
 
       const marker = L.marker([inc.latitude, inc.longitude], { icon: customIcon });
 
-      const popupHtml = `
-        <div style="padding: 4px;">
-          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;">
-            <span style="background: ${color}25; color: ${color}; border: 1px solid ${color}50; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; text-transform: uppercase;">
-              ${inc.urgency || 'Medium'} Urgency
-            </span>
-            <span style="font-size: 11px; color: #94a3b8;">${inc.status || 'Open'}</span>
-          </div>
-          <h4 style="margin: 0 0 6px 0; color: #f8fafc; font-size: 15px; font-weight: 700;">${inc.title}</h4>
-          <p style="margin: 0 0 8px 0; color: #cbd5e1; font-size: 12px; line-height: 1.4;">${inc.description || 'No description provided'}</p>
-          <div style="font-size: 11px; color: #94a3b8; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px;">
-            📍 ${inc.location_name || `${Number(inc.latitude).toFixed(4)}, ${Number(inc.longitude).toFixed(4)}`}
-          </div>
+      const popupDiv = document.createElement('div');
+      popupDiv.style.minWidth = '240px';
+      popupDiv.style.padding = '4px';
+      popupDiv.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px;">
+          <span style="background: ${color}25; color: ${color}; border: 1px solid ${color}50; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; text-transform: uppercase;">
+            ${inc.urgency || 'Medium'} Urgency
+          </span>
+          <span style="font-size: 11px; color: #94a3b8;">${inc.status || 'Open'}</span>
         </div>
+        <h4 style="margin: 0 0 6px 0; color: #f8fafc; font-size: 15px; font-weight: 700;">${inc.title}</h4>
+        <p style="margin: 0 0 8px 0; color: #cbd5e1; font-size: 12px; line-height: 1.4;">${inc.description || 'No description provided'}</p>
+        <div style="font-size: 11px; color: #94a3b8; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px; margin-bottom: 8px;">
+          📍 ${inc.location_name || `${Number(inc.latitude).toFixed(4)}, ${Number(inc.longitude).toFixed(4)}`}
+        </div>
+        <button id="btn-evacuate-incident-${inc.id}" style="
+          width: 100%;
+          background: linear-gradient(135deg, #06b6d4, #0284c7);
+          color: white;
+          border: none;
+          padding: 8px 12px;
+          border-radius: 8px;
+          font-weight: bold;
+          font-size: 12px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+        ">
+          🧭 Evacuate to Nearest Shelter (OSRM)
+        </button>
       `;
 
-      marker.bindPopup(popupHtml);
+      popupDiv.querySelector(`#btn-evacuate-incident-${inc.id}`).onclick = () => {
+        handleEvacuationRoute(inc.latitude, inc.longitude, null, null, 'driving');
+      };
+
+      marker.bindPopup(popupDiv);
       marker.on('click', () => {
         if (onSelectIncident) onSelectIncident(inc);
       });
@@ -256,7 +513,7 @@ export default function DisasterMap({
     }
   }, [incidents, selectedCategory, selectedIncident]);
 
-  // Google Maps Style Search: Type any city or landmark and fly there
+  // Google Maps Search
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchQuery.trim() || !mapInstanceRef.current) return;
@@ -280,7 +537,7 @@ export default function DisasterMap({
     }
   };
 
-  // Google Maps Style GPS "Locate Me" Button
+  // GPS "Locate Me" Button
   const handleLocateMe = () => {
     if (!navigator.geolocation || !mapInstanceRef.current) {
       alert('Geolocation is not supported by your browser.');
@@ -289,6 +546,7 @@ export default function DisasterMap({
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords;
+        setActivePinCoords({ lat: latitude, lng: longitude });
         mapInstanceRef.current.flyTo([latitude, longitude], 15, { duration: 1.2 });
       },
       () => {
@@ -304,7 +562,7 @@ export default function DisasterMap({
         <Search size={16} className="text-dim" />
         <input
           type="text"
-          placeholder="Search city, barangay, or landmark (e.g. Delabaya, Manila)..."
+          placeholder="Search city, barangay, or landmark..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -312,6 +570,20 @@ export default function DisasterMap({
           {isSearching ? <Loader2 size={14} className="spin" /> : 'Search'}
         </button>
       </form>
+
+      {/* Floating Action Controls on Top-Right */}
+      <div className="map-top-actions">
+        {/* Toggle All Evacuation Areas Button */}
+        <button
+          type="button"
+          className={`gmaps-shelters-btn ${showShelters ? 'active' : ''}`}
+          onClick={() => setShowShelters(prev => !prev)}
+          title="Toggle view of all designated evacuation centers"
+        >
+          <Shield size={15} />
+          <span>{showShelters ? `🏥 Shelters Visible (${shelters.length})` : '🏥 View All Evacuation Centers'}</span>
+        </button>
+      </div>
 
       {/* Floating GPS Locate Button */}
       <button
@@ -323,12 +595,80 @@ export default function DisasterMap({
         <Navigation size={18} />
       </button>
 
+      {/* Interactive Floating Evacuation Navigation HUD Card (API #5 - OSRM) */}
+      {activeRoute && (
+        <div className="evacuation-nav-hud glass-panel">
+          <div className="hud-header">
+            <div className="hud-title-left">
+              <div className="hud-pulse-dot"></div>
+              <div>
+                <span className="hud-tag">OSRM SAFE EVACUATION ROUTE</span>
+                <h4 className="hud-destination">{activeRoute.shelter?.name}</h4>
+              </div>
+            </div>
+            <button className="hud-close-btn" onClick={handleClearRoute} title="Exit Evacuation Navigation">
+              <X size={16} />
+            </button>
+          </div>
+
+          <div className="hud-metrics-row">
+            <div className="hud-metric-box">
+              <span className="hud-metric-label">Road Distance</span>
+              <span className="hud-metric-val text-cyan">{activeRoute.distance_km} km</span>
+            </div>
+            <div className="hud-metric-box">
+              <span className="hud-metric-label">Estimated Time</span>
+              <span className="hud-metric-val text-emerald">{activeRoute.duration_mins} mins</span>
+            </div>
+            <div className="hud-mode-group">
+              <button
+                className={`hud-mode-pill ${activeRoute.mode === 'driving' ? 'active' : ''}`}
+                onClick={() => handleToggleMode('driving')}
+                disabled={isRouting}
+              >
+                <Car size={13} />
+                <span>Drive</span>
+              </button>
+              <button
+                className={`hud-mode-pill ${activeRoute.mode === 'walking' ? 'active' : ''}`}
+                onClick={() => handleToggleMode('walking')}
+                disabled={isRouting}
+              >
+                <Footprints size={13} />
+                <span>Walk</span>
+              </button>
+            </div>
+          </div>
+
+          {activeRoute.steps && activeRoute.steps.length > 0 && (
+            <div className="hud-step-bar">
+              <span className="text-dim text-xs">Initial Turn:</span>
+              <span className="text-xs text-light font-medium">➡️ {activeRoute.steps[0].instruction} ({activeRoute.steps[0].distance_m}m)</span>
+            </div>
+          )}
+
+          <div className="hud-footer">
+            <span className="hud-shelter-info">
+              🛡️ {activeRoute.shelter?.type || 'Evacuation Center'} • {activeRoute.shelter?.elevation || 'Flood-Safe'} • Live Cots: {activeRoute.shelter?.current_occupancy ? `${activeRoute.shelter.current_occupancy}/${activeRoute.shelter.total_capacity}` : 'Open'}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Loading Spinner for Route Calculation */}
+      {isRouting && (
+        <div className="routing-spinner-overlay glass-panel">
+          <Loader2 size={18} className="spin text-cyan" />
+          <span>Calculating safest road path via OSRM Engine...</span>
+        </div>
+      )}
+
       {/* Map Container */}
       <div id="disaster-leaflet-map" ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
 
       {/* Map Helper Badge */}
       <div className="map-hint-badge">
-        <span>💡 Click anywhere on map to drop a pin & view landmark name</span>
+        <span>💡 Click anywhere on map to view nearest evacuation center & road route</span>
       </div>
     </div>
   );

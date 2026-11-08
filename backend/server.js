@@ -14,6 +14,7 @@ const {
   updateIncidentRecord,
   deleteIncidentRecord
 } = require('./incidentsStore');
+const { EVACUATION_SHELTERS, getNearestEvacuationRoute } = require('./routing');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -214,6 +215,30 @@ app.post('/api/alerts/dispatch', async (req, res) => {
   try {
     const alertResult = await dispatchVolunteerAlert(req.body);
     res.status(200).json(alertResult);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- SAFE EVACUATION ROUTING API (API #5 - OSRM ENGINE) ---
+app.get('/api/evacuation-shelters', (req, res) => {
+  res.status(200).json(EVACUATION_SHELTERS);
+});
+
+app.get('/api/evacuation-route', async (req, res) => {
+  try {
+    const startLat = parseFloat(req.query.startLat);
+    const startLng = parseFloat(req.query.startLng);
+    const destLat = req.query.destLat ? parseFloat(req.query.destLat) : null;
+    const destLng = req.query.destLng ? parseFloat(req.query.destLng) : null;
+    const mode = req.query.mode || 'driving';
+
+    if (isNaN(startLat) || isNaN(startLng)) {
+      return res.status(400).json({ error: 'Valid startLat and startLng coordinates are required' });
+    }
+
+    const routeData = await getNearestEvacuationRoute(startLat, startLng, destLat, destLng, mode);
+    res.status(200).json(routeData);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
