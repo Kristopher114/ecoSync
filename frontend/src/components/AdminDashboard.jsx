@@ -225,8 +225,6 @@ export default function AdminDashboard({
                 color: '#7dd3fc'
               }}
             >
-              <Lock size={15} className="text-cyan" />
-              <span>Jurisdiction Locked: <strong>{assignedMuniObj.shortName}</strong></span>
             </div>
           )}
           <div className="admin-badge-role">
@@ -760,9 +758,9 @@ export default function AdminDashboard({
                               style={{
                                 width: `${pct}%`,
                                 backgroundColor: category === 'Flood' ? '#38bdf8' :
-                                                 category === 'Medical' ? '#f43f5e' :
-                                                 category === 'Fire' ? '#fb923c' :
-                                                 category === 'Rescue' ? '#a855f7' : '#06b6d4'
+                                  category === 'Medical' ? '#f43f5e' :
+                                    category === 'Fire' ? '#fb923c' :
+                                      category === 'Rescue' ? '#a855f7' : '#06b6d4'
                               }}
                             />
                           </div>
