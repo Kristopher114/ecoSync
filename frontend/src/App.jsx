@@ -235,11 +235,37 @@ export default function App() {
       {/* Main View Router */}
       {activeTab === 'map' ? (
         <main className="main-hub-content">
+          {/* Left Half (50%): Interactive Disaster & Evacuation Map */}
           <section className="map-section-container">
-            {/* Filter Category Chips & Actions */}
+            <div className="map-top-info-bar glass-panel">
+              <div className="map-top-info-left">
+                <span className="map-info-status">
+                  📍 <strong>{activeMunicipalityObj.shortName || activeMunicipalityObj.name}</strong> • 📅 {dateFilter === 'today' ? "Today's Landmarks (Daily Reset Active)" : dateFilter === '24h' ? "Past 24 Hours" : dateFilter === 'custom' ? `Date: ${selectedCustomDate}` : "All Historical"} ({displayedIncidents.length} active)
+                </span>
+              </div>
+              <div className="map-top-info-right">
+                <span className="map-info-hint">💡 Click map or incident for OSRM safe route</span>
+              </div>
+            </div>
+
+            <DisasterMap
+              incidents={displayedIncidents}
+              selectedCategory={selectedCategory}
+              dateFilter={dateFilter}
+              selectedMunicipality={selectedMunicipality}
+              targetLocation={activeMunicipalityObj}
+              onMapClick={handleMapClick}
+              selectedIncident={selectedIncident}
+              onSelectIncident={(inc) => setSelectedIncident(inc)}
+              onOpenReportWithLocation={handleOpenReportWithLocation}
+            />
+          </section>
+
+          {/* Right Half (50%): Filter Pills, Jurisdiction, Date Reset Pills, Weather & News */}
+          <aside className="right-hub-panel">
             <div className="filter-controls-wrapper">
+              {/* Jurisdiction & Category Filter Pills */}
               <div className="filter-bar glass-panel">
-                {/* Lanao del Norte Municipality Dropdown Filter */}
                 <div className="municipality-select-wrap">
                   <MapPin size={14} className="text-cyan" />
                   <span className="filter-group-label">Jurisdiction:</span>
@@ -275,11 +301,9 @@ export default function App() {
                      cat === 'Food & Water' ? '🍞 Food/Water' : '⚠️ General'}
                   </button>
                 ))}
-
-
               </div>
 
-              {/* Date & Daily Reset Filter Bar */}
+              {/* Date & Daily Reset Filter Pills */}
               <div className="date-filter-bar glass-panel">
                 <div className="date-filter-left">
                   <span className="filter-group-label">
@@ -340,36 +364,7 @@ export default function App() {
                   </span>
                 </div>
               </div>
-
-              {/* Map Top Status & Navigation Guidance Bar (Positioned above map to prevent clutter) */}
-              <div className="map-top-info-bar glass-panel">
-                <div className="map-top-info-left">
-                  <span className="map-info-status">
-                    📍 <strong>{activeMunicipalityObj.shortName || activeMunicipalityObj.name}</strong> • 📅 {dateFilter === 'today' ? "Today's Landmarks (Daily Reset Active)" : dateFilter === '24h' ? "Past 24 Hours" : dateFilter === 'custom' ? `Date: ${selectedCustomDate}` : "All Historical"} ({displayedIncidents.length} active)
-                  </span>
-                </div>
-                <div className="map-top-info-right">
-                  <span className="map-info-hint">💡 Click anywhere on map or any incident to view nearest evacuation center & safe road route</span>
-                </div>
-              </div>
             </div>
-
-            {/* Interactive Leaflet Map with Active Date Filter */}
-            <DisasterMap
-              incidents={displayedIncidents}
-              selectedCategory={selectedCategory}
-              dateFilter={dateFilter}
-              selectedMunicipality={selectedMunicipality}
-              targetLocation={activeMunicipalityObj}
-              onMapClick={handleMapClick}
-              selectedIncident={selectedIncident}
-              onSelectIncident={(inc) => setSelectedIncident(inc)}
-              onOpenReportWithLocation={handleOpenReportWithLocation}
-            />
-          </section>
-
-          {/* Right Sidebar: Weather Alerts (API 1) & News (API 4) */}
-          <aside>
             <WeatherWidget
               pinnedLocation={
                 selectedIncident

@@ -161,29 +161,40 @@
   color: #60a5fa;
 }
 
-/* Main Hub Layout */
+/* Main Hub Layout (50/50 Split: Map Left | Pills & Widgets Right) */
 .main-hub-content {
   display: grid;
-  grid-template-columns: 1fr 340px;
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
   flex: 1;
   min-height: calc(100vh - 120px);
+  align-items: start;
 }
 
 .map-section-container {
   display: flex;
   flex-direction: column;
+  gap: 10px;
+  height: calc(100vh - 108px);
+  min-height: 580px;
+  position: sticky;
+  top: 16px;
+}
+
+.right-hub-panel {
+  display: flex;
+  flex-direction: column;
   gap: 12px;
-  height: 100%;
+  width: 100%;
 }
 
 /* Category Filter Bar */
 .filter-bar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
-  overflow-x: auto;
-  padding: 6px 12px;
+  padding: 10px 14px;
 }
 
 .filter-chip {
@@ -273,12 +284,12 @@
   pointer-events: none;
 }
 
-/* Google Maps Floating Search Bar */
+/* Google Maps Floating Search Bar (Compact Left-Aligned so Right Side Fits More Pills) */
 .gmaps-search-bar {
   position: absolute;
   top: 14px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 14px;
+  transform: none;
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -287,9 +298,9 @@
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 28px;
-  padding: 6px 14px;
-  width: 90%;
-  max-width: 440px;
+  padding: 6px 12px;
+  width: calc(50% - 20px);
+  max-width: 280px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
@@ -2067,8 +2078,8 @@
 .filter-controls-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 10px;
+  margin-bottom: 0;
 }
 
 .filter-group-label {
