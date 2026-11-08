@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import {
   ShieldAlert, CheckCircle, Clock, Trash2, Edit3,
   BarChart2, AlertTriangle, RefreshCw, CheckCircle2,
-  Compass, Navigation, Layers, Database, PieChart, Lock, MapPin
+  Compass, Navigation, Layers, Database, PieChart, Lock, MapPin, PlusCircle, X, Loader2
 } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import { EVACUATION_SHELTERS, calculateDirectOsrmRoute } from '../sheltersData';
-import {
+import {
+  SPECIFIC_MUNICIPALITIES,
   getMunicipalityById,
   doesIncidentBelongToMunicipality,
   doesShelterBelongToMunicipality
@@ -17,7 +18,11 @@ export default function AdminDashboard({
   onUpdateStatus,
   onDeleteIncident,
   assignedMunicipality = null,
-  currentUser = null
+  currentUser = null,
+  shelters: externalShelters,
+  onAddShelter,
+  onDeleteShelter,
+  onRefreshShelters
 }) {
   // Sidebar active section: 'crud' | 'shelters' | 'analytics' | 'all'
   const [activeSection, setActiveSection] = useState('crud');
@@ -30,6 +35,119 @@ export default function AdminDashboard({
 
   // Safe Evacuation Centers & OSRM Routing API (API #5)
   const [shelters, setShelters] = useState(EVACUATION_SHELTERS);
+  const effectiveShelters = externalShelters && externalShelters.length > 0 ? externalShelters : shelters;
+
+  // Add Evacuation Shelter Modal & Form State
+  const defaultMuniShort = assignedMuniObj ? assignedMuniObj.shortName : 'Kapatagan';
+  const defaultLat = assignedMuniObj ? assignedMuniObj.lat : 7.9001;
+  const defaultLng = assignedMuniObj ? assignedMuniObj.lng : 123.7692;
+
+  const [isAddShelterOpen, setIsAddShelterOpen] = useState(false);
+  const [isSubmittingShelter, setIsSubmittingShelter] = useState(false);
+  const [shelterFormError, setShelterFormError] = useState('');
+  const [shelterFormSuccess, setShelterFormSuccess] = useState('');
+  const [shelterForm, setShelterForm] = useState({
+    name: '',
+    municipality: defaultMuniShort,
+    type: 'Primary Regional Evacuation Center',
+    address: '',
+    latitude: defaultLat,
+    longitude: defaultLng,
+    total_capacity: 500,
+    current_occupancy: 0,
+    elevation: 'Elevated High Ground (Zero Flood Risk)',
+    amenities: 'Backup Generator, Clean Water Filtration, First Aid Station, Emergency Power',
+    contact: '+63 917 882 1400'
+  });
+
+  const handleMuniChange = (muniShortName) => {
+    const found = SPECIFIC_MUNICIPALITIES.find(m => m.shortName === muniShortName || m.id === muniShortName || m.name.includes(muniShortName));
+    setShelterForm(prev => ({
+      ...prev,
+      municipality: found ? found.shortName : muniShortName,
+      latitude: found ? found.lat : prev.latitude,
+      longitude: found ? found.lng : prev.longitude
+    }));
+  };
+
+  const handleAutoFillCoords = () => {
+    const found = SPECIFIC_MUNICIPALITIES.find(
+      m => m.shortName === shelterForm.municipality || m.id === shelterForm.municipality || m.name.includes(shelterForm.municipality)
+    );
+    if (found) {
+      setShelterForm(prev => ({
+        ...prev,
+        latitude: found.lat,
+        longitude: found.lng
+      }));
+    }
+  };
+
+  const handleCreateShelter = async (e) => {
+    e.preventDefault();
+    setShelterFormError('');
+    setShelterFormSuccess('');
+
+    if (!shelterForm.name.trim()) {
+      setShelterFormError('Please enter a Shelter Name.');
+      return;
+    }
+    const lat = parseFloat(shelterForm.latitude);
+    const lng = parseFloat(shelterForm.longitude);
+    if (isNaN(lat) || isNaN(lng)) {
+      setShelterFormError('Please enter valid Latitude and Longitude coordinates.');
+      return;
+    }
+
+    setIsSubmittingShelter(true);
+    try {
+      const amenitiesArr = typeof shelterForm.amenities === 'string'
+        ? shelterForm.amenities.split(',').map(s => s.trim()).filter(Boolean)
+        : shelterForm.amenities;
+
+      const newSiteData = {
+        name: shelterForm.name.trim(),
+        municipality: shelterForm.municipality,
+        type: shelterForm.type,
+        address: shelterForm.address.trim() || `${shelterForm.municipality}, Lanao del Norte`,
+        latitude: lat,
+        longitude: lng,
+        total_capacity: parseInt(shelterForm.total_capacity, 10) || 500,
+        current_occupancy: parseInt(shelterForm.current_occupancy, 10) || 0,
+        elevation: shelterForm.elevation,
+        amenities: amenitiesArr,
+        contact: shelterForm.contact.trim() || '+63 917 882 1400',
+        created_by: currentUser?.username || 'Admin Coordinator'
+      };
+
+      if (onAddShelter) {
+        await onAddShelter(newSiteData);
+      }
+
+      setShelterFormSuccess(`✅ Evacuation Center "${shelterForm.name}" created and synced with OSRM Navigation!`);
+      setTimeout(() => {
+        setIsAddShelterOpen(false);
+        setShelterFormSuccess('');
+        setShelterForm({
+          name: '',
+          municipality: defaultMuniShort,
+          type: 'Primary Regional Evacuation Center',
+          address: '',
+          latitude: defaultLat,
+          longitude: defaultLng,
+          total_capacity: 500,
+          current_occupancy: 0,
+          elevation: 'Elevated High Ground (Zero Flood Risk)',
+          amenities: 'Backup Generator, Clean Water Filtration, First Aid Station, Emergency Power',
+          contact: '+63 917 882 1400'
+        });
+      }, 1400);
+    } catch (err) {
+      setShelterFormError(err.message || 'Failed to create evacuation center');
+    } finally {
+      setIsSubmittingShelter(false);
+    }
+  };
   const [isLoadingShelters, setIsLoadingShelters] = useState(false);
   const [isSimulatingRoute, setIsSimulatingRoute] = useState(false);
   const [routeToast, setRouteToast] = useState('');
@@ -41,9 +159,9 @@ export default function AdminDashboard({
     ? incidents.filter(inc => doesIncidentBelongToMunicipality(inc, assignedMuniObj.id))
     : incidents;
 
-  const scopedShelters = assignedMuniObj
-    ? shelters.filter(s => doesShelterBelongToMunicipality(s, assignedMuniObj.id))
-    : shelters;
+  const scopedShelters = assignedMuniObj
+    ? effectiveShelters.filter(s => doesShelterBelongToMunicipality(s, assignedMuniObj.id))
+    : effectiveShelters;
 
   // Helper to check if an ISO date string matches today's calendar date
   const isDateToday = (dateStr) => {
@@ -100,6 +218,14 @@ export default function AdminDashboard({
   // Fetch Evacuation Shelters from Backend (with instant built-in fallback)
   const fetchShelters = async () => {
     setIsLoadingShelters(true);
+    if (onRefreshShelters) {
+      try {
+        await onRefreshShelters();
+      } finally {
+        setIsLoadingShelters(false);
+      }
+      return;
+    }
     try {
       const res = await fetch(`${API_BASE_URL}/api/evacuation-shelters`);
       const contentType = res.headers.get('content-type') || '';
@@ -591,6 +717,20 @@ export default function AdminDashboard({
                   )}
 
                   <button
+                    id="btn-open-add-shelter"
+                    type="button"
+                    className="btn-add-shelter"
+                    onClick={() => {
+                      setIsAddShelterOpen(prev => !prev);
+                      setShelterFormError('');
+                      setShelterFormSuccess('');
+                    }}
+                    title="Add a new custom evacuation shelter for this municipality"
+                  >
+                    <PlusCircle size={15} />
+                    <span>➕ Add Evacuation Site</span>
+                  </button>
+                  <button
                     className="btn-refresh-dispatch"
                     onClick={fetchShelters}
                     title="Refresh Shelter Capacities"
@@ -617,6 +757,230 @@ export default function AdminDashboard({
                 <div className="dispatch-toast-banner" style={{ background: 'rgba(6, 182, 212, 0.15)', borderColor: 'rgba(6, 182, 212, 0.4)', color: '#7dd3fc' }}>
                   <CheckCircle2 size={16} className="text-cyan" />
                   <span>{routeToast}</span>
+                </div>
+              )}
+
+              {/* ADD EVACUATION SHELTER PANEL */}
+              {isAddShelterOpen && (
+                <div className="add-shelter-panel glass-panel" style={{
+                  background: 'rgba(15, 23, 42, 0.95)',
+                  border: '1px solid rgba(6, 182, 212, 0.4)',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  marginBottom: '16px',
+                  boxShadow: '0 8px 30px rgba(0, 0, 0, 0.5)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <PlusCircle size={18} className="text-cyan" />
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: '0.96rem', fontWeight: 800, color: '#f8fafc' }}>
+                          Add New Designated Evacuation Shelter (OSRM-Integrated)
+                        </h4>
+                        <p style={{ margin: 0, fontSize: '0.72rem', color: '#94a3b8' }}>
+                          Real-time road routing, capacity tracking & Leaflet map pin synchronization
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="icon-close-btn"
+                      onClick={() => setIsAddShelterOpen(false)}
+                      title="Close Form"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  {shelterFormError && (
+                    <div className="auth-alert-error" style={{ marginBottom: '10px' }}>
+                      <AlertTriangle size={15} />
+                      <span>{shelterFormError}</span>
+                    </div>
+                  )}
+
+                  {shelterFormSuccess && (
+                    <div className="auth-alert-success" style={{ marginBottom: '10px' }}>
+                      <CheckCircle2 size={15} />
+                      <span>{shelterFormSuccess}</span>
+                    </div>
+                  )}
+
+                  <form onSubmit={handleCreateShelter} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}>
+                      {/* Name */}
+                      <div className="form-group-compact">
+                        <label>Shelter Name *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Kapatagan Central Gym Relief Hub"
+                          value={shelterForm.name}
+                          onChange={(e) => setShelterForm({ ...shelterForm, name: e.target.value })}
+                        />
+                      </div>
+
+                      {/* Municipality Jurisdiction */}
+                      <div className="form-group-compact">
+                        <label>Municipality Jurisdiction *</label>
+                        <select
+                          className="municipality-dropdown-select"
+                          value={shelterForm.municipality}
+                          onChange={(e) => handleMuniChange(e.target.value)}
+                          disabled={!!assignedMuniObj}
+                          style={{ width: '100%' }}
+                        >
+                          {SPECIFIC_MUNICIPALITIES.map(m => (
+                            <option key={m.id} value={m.shortName}>
+                              📍 {m.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Shelter Type */}
+                      <div className="form-group-compact">
+                        <label>Shelter Classification</label>
+                        <select
+                          className="municipality-dropdown-select"
+                          value={shelterForm.type}
+                          onChange={(e) => setShelterForm({ ...shelterForm, type: e.target.value })}
+                          style={{ width: '100%' }}
+                        >
+                          <option value="Primary Regional Evacuation Center">Primary Regional Evacuation Center</option>
+                          <option value="Secondary Regional Evacuation Hub">Secondary Regional Evacuation Hub</option>
+                          <option value="Community High School Evacuation Center">Community High School Evacuation Center</option>
+                          <option value="Municipal Disaster Operations Center">Municipal Disaster Operations Center</option>
+                          <option value="Primary Government Medical Trauma Hub">Primary Government Medical Trauma Hub</option>
+                          <option value="Upland Community Flood Sanctuary">Upland Community Flood Sanctuary</option>
+                        </select>
+                      </div>
+
+                      {/* Street Address */}
+                      <div className="form-group-compact">
+                        <label>Street Address / Barangay</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Purok 4, Poblacion Central"
+                          value={shelterForm.address}
+                          onChange={(e) => setShelterForm({ ...shelterForm, address: e.target.value })}
+                        />
+                      </div>
+
+                      {/* Latitude & Longitude */}
+                      <div className="form-group-compact">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <label>Latitude & Longitude *</label>
+                          <button
+                            type="button"
+                            className="btn-autofill-coords"
+                            onClick={handleAutoFillCoords}
+                            title="Auto-fill center coordinates of selected municipality"
+                          >
+                            📍 Auto-Fill Coords
+                          </button>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                          <input
+                            type="number"
+                            step="any"
+                            required
+                            placeholder="Lat (e.g. 7.9001)"
+                            value={shelterForm.latitude}
+                            onChange={(e) => setShelterForm({ ...shelterForm, latitude: e.target.value })}
+                          />
+                          <input
+                            type="number"
+                            step="any"
+                            required
+                            placeholder="Lng (e.g. 123.7692)"
+                            value={shelterForm.longitude}
+                            onChange={(e) => setShelterForm({ ...shelterForm, longitude: e.target.value })}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Total Cots Capacity & Occupancy */}
+                      <div className="form-group-compact">
+                        <label>Capacity & Current Occupancy</label>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                          <input
+                            type="number"
+                            min="10"
+                            placeholder="Total Capacity (e.g. 600)"
+                            value={shelterForm.total_capacity}
+                            onChange={(e) => setShelterForm({ ...shelterForm, total_capacity: e.target.value })}
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            placeholder="Current Occupancy"
+                            value={shelterForm.current_occupancy}
+                            onChange={(e) => setShelterForm({ ...shelterForm, current_occupancy: e.target.value })}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Elevation & Contact */}
+                      <div className="form-group-compact">
+                        <label>Elevation / Safety Level</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Elevated High Ground (Zero Flood Risk)"
+                          value={shelterForm.elevation}
+                          onChange={(e) => setShelterForm({ ...shelterForm, elevation: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="form-group-compact">
+                        <label>Emergency Hotline / Contact</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. +63 917 882 1400"
+                          value={shelterForm.contact}
+                          onChange={(e) => setShelterForm({ ...shelterForm, contact: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Amenities */}
+                    <div className="form-group-compact">
+                      <label>Key Amenities / Resources (comma-separated)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Backup Generator, Clean Water Filtration, First Aid Station, Mobile Kitchen"
+                        value={shelterForm.amenities}
+                        onChange={(e) => setShelterForm({ ...shelterForm, amenities: e.target.value })}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => setIsAddShelterOpen(false)}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="btn-primary"
+                        disabled={isSubmittingShelter}
+                      >
+                        {isSubmittingShelter ? (
+                          <>
+                            <Loader2 size={15} className="spin" />
+                            <span>Adding to OSRM...</span>
+                          </>
+                        ) : (
+                          <>
+                            <PlusCircle size={15} />
+                            <span>Save & Sync with OSRM</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
                 </div>
               )}
 
@@ -714,15 +1078,32 @@ export default function AdminDashboard({
                             </span>
                           </td>
                           <td>
-                            <button
-                              className="btn-refresh-dispatch"
-                              style={{ padding: '4px 10px', fontSize: '0.72rem' }}
-                              onClick={() => handleSimulateRoute(shelter)}
-                              title="Simulate OSRM road route to this center"
-                            >
-                              <Navigation size={12} className="text-cyan" />
-                              <span>Test Route</span>
-                            </button>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <button
+                                className="btn-refresh-dispatch"
+                                style={{ padding: '4px 10px', fontSize: '0.72rem' }}
+                                onClick={() => handleSimulateRoute(shelter)}
+                                title="Simulate OSRM road route to this center"
+                              >
+                                <Navigation size={12} className="text-cyan" />
+                                <span>Test Route</span>
+                              </button>
+                              {shelter.is_custom && (
+                                <button
+                                  type="button"
+                                  className="delete-row-btn"
+                                  style={{ padding: '4px 6px' }}
+                                  title="Delete Evacuation Site"
+                                  onClick={() => {
+                                    if (window.confirm(`Decommission and delete "${shelter.name}"?`)) {
+                                      if (onDeleteShelter) onDeleteShelter(shelter.id);
+                                    }
+                                  }}
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
