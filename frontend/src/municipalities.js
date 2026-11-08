@@ -1,4 +1,5 @@
 // Official Municipalities & Cities of Lanao del Norte Province (Region X)
+// Configured with wide municipal jurisdiction bounds covering urban centers, coastal roads, and upland barangays
 export const LANAO_DEL_NORTE_MUNICIPALITIES = [
   {
     id: 'ALL',
@@ -9,6 +10,8 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
     zoom: 10,
     minZoom: 9,
     boundsPad: null,
+    boundsPadLat: null,
+    boundsPadLng: null,
     keywords: []
   },
   {
@@ -17,10 +20,17 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
     shortName: 'Iligan City',
     lat: 8.2280,
     lng: 124.2450,
-    zoom: 13,
-    minZoom: 12,
-    boundsPad: 0.085,
-    keywords: ['Iligan', 'Tibanga', 'Pala-o', 'Tambacan', 'Tipanoy', 'Abuno', 'Mahayahay', 'Hinaplanon', 'San Miguel']
+    zoom: 12,
+    minZoom: 11,
+    boundsPad: 0.16,
+    boundsPadLat: 0.16,
+    boundsPadLng: 0.20,
+    keywords: [
+      'Iligan', 'Tibanga', 'Pala-o', 'Tambacan', 'Tipanoy', 'Abuno', 'Mahayahay',
+      'Hinaplanon', 'San Miguel', 'Buru-un', 'Maria Cristina', 'Suarez', 'Tominobo',
+      'Del Carmen', 'Santiago', 'Saray', 'Dalipuga', 'Kiwalan', 'Acmac', 'Santa Filomena',
+      'luinab', 'Pugaan', 'Mandulog', 'Digkilaan', 'Rogongon', 'Ubaldo Laya', 'Villaverde'
+    ]
   },
   {
     id: 'TUBOD',
@@ -28,10 +38,15 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
     shortName: 'Tubod (Capital)',
     lat: 8.0387,
     lng: 123.7920,
-    zoom: 15,
-    minZoom: 13,
-    boundsPad: 0.055,
-    keywords: ['Tubod, Lanao del Norte', 'Mindanao Civic Center', 'Sagadan', 'Tubod']
+    zoom: 13,
+    minZoom: 11,
+    boundsPad: 0.13,
+    boundsPadLat: 0.13,
+    boundsPadLng: 0.16,
+    keywords: [
+      'Tubod, Lanao del Norte', 'Mindanao Civic Center', 'Sagadan', 'Tubod',
+      'Pigcarangan', 'Malingao', 'Baris', 'Dalama', 'Bulod', 'Poblacion Tubod', 'San Antonio'
+    ]
   },
   {
     id: 'KAPATAGAN',
@@ -39,10 +54,15 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
     shortName: 'Kapatagan',
     lat: 7.8986,
     lng: 123.7685,
-    zoom: 15,
-    minZoom: 13,
-    boundsPad: 0.055,
-    keywords: ['Kapatagan']
+    zoom: 13,
+    minZoom: 11,
+    boundsPad: 0.13,
+    boundsPadLat: 0.13,
+    boundsPadLng: 0.16,
+    keywords: [
+      'Kapatagan', 'Margos', 'Taguitic', 'De Asis', 'Donggoan', 'La Libertad',
+      'Susosan', 'Curvada', 'Cathedral Falls', 'Waterfalls', 'Lapinig', 'Butadon', 'Maridagao'
+    ]
   },
   {
     id: 'LALA',
@@ -50,10 +70,15 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
     shortName: 'Lala',
     lat: 7.9639,
     lng: 123.7758,
-    zoom: 15,
-    minZoom: 13,
-    boundsPad: 0.055,
-    keywords: ['Lala', 'Maranding']
+    zoom: 13,
+    minZoom: 11,
+    boundsPad: 0.13,
+    boundsPadLat: 0.13,
+    boundsPadLng: 0.16,
+    keywords: [
+      'Lala', 'Maranding', 'Lanipao', 'Abaga', 'Simpak', 'Darumawang',
+      'Pacita', 'Rebe', 'Gumagamot', 'Pendolonan', 'Raw-an'
+    ]
   },
   {
     id: 'KAUSWAGAN',
@@ -61,10 +86,12 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
     shortName: 'Kauswagan',
     lat: 8.1909,
     lng: 124.0865,
-    zoom: 15,
-    minZoom: 13,
-    boundsPad: 0.055,
-    keywords: ['Kauswagan']
+    zoom: 13,
+    minZoom: 11,
+    boundsPad: 0.11,
+    boundsPadLat: 0.11,
+    boundsPadLng: 0.14,
+    keywords: ['Kauswagan', 'Tacub', 'Libertad Kauswagan', 'Kawit', 'Bagumbayan', 'Tingintingin']
   },
   {
     id: 'LINAMON',
@@ -72,10 +99,12 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
     shortName: 'Linamon',
     lat: 8.1833,
     lng: 124.1634,
-    zoom: 15,
-    minZoom: 13,
-    boundsPad: 0.050,
-    keywords: ['Linamon']
+    zoom: 13,
+    minZoom: 12,
+    boundsPad: 0.10,
+    boundsPadLat: 0.10,
+    boundsPadLng: 0.13,
+    keywords: ['Linamon', 'Magoong', 'Samburon', 'Robocon', 'Napo', 'Purakan']
   },
   {
     id: 'BACOLOD',
@@ -83,10 +112,12 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
     shortName: 'Bacolod',
     lat: 8.1896,
     lng: 124.0244,
-    zoom: 15,
-    minZoom: 13,
-    boundsPad: 0.050,
-    keywords: ['Bacolod']
+    zoom: 13,
+    minZoom: 11,
+    boundsPad: 0.11,
+    boundsPadLat: 0.11,
+    boundsPadLng: 0.14,
+    keywords: ['Bacolod', 'Bacolod, Lanao del Norte', 'Binuni', 'Demologan', 'Esperanza', 'Liangan East']
   },
   {
     id: 'KOLAMBUGAN',
@@ -94,10 +125,12 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
     shortName: 'Kolambugan',
     lat: 8.1142,
     lng: 123.9024,
-    zoom: 15,
-    minZoom: 13,
-    boundsPad: 0.055,
-    keywords: ['Kolambugan']
+    zoom: 13,
+    minZoom: 11,
+    boundsPad: 0.12,
+    boundsPadLat: 0.12,
+    boundsPadLng: 0.15,
+    keywords: ['Kolambugan', 'Mukas', 'Manga', 'Simbuco', 'Austin Heights', 'Kulasihan', 'Caromatan']
   },
   {
     id: 'BALOI',
@@ -105,10 +138,12 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
     shortName: 'Balo-i',
     lat: 8.1146,
     lng: 124.2223,
-    zoom: 15,
-    minZoom: 13,
-    boundsPad: 0.055,
-    keywords: ['Baloi', 'Balo-i']
+    zoom: 13,
+    minZoom: 11,
+    boundsPad: 0.12,
+    boundsPadLat: 0.12,
+    boundsPadLng: 0.15,
+    keywords: ['Baloi', 'Balo-i', 'Maria Cristina Baloi', 'Nangka', 'Pacalundo', 'Momungan', 'Abaga Baloi']
   },
   {
     id: 'MAIGO',
@@ -116,10 +151,12 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
     shortName: 'Maigo',
     lat: 8.1619,
     lng: 123.9595,
-    zoom: 15,
-    minZoom: 13,
-    boundsPad: 0.050,
-    keywords: ['Maigo']
+    zoom: 13,
+    minZoom: 11,
+    boundsPad: 0.11,
+    boundsPadLat: 0.11,
+    boundsPadLng: 0.14,
+    keywords: ['Maigo', 'Labuay', 'Kulasihan Maigo', 'Segapod', 'CMT', 'Balagatasa']
   },
   {
     id: 'BAROY',
@@ -127,10 +164,12 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
     shortName: 'Baroy',
     lat: 8.0262,
     lng: 123.7784,
-    zoom: 15,
-    minZoom: 13,
-    boundsPad: 0.050,
-    keywords: ['Baroy']
+    zoom: 13,
+    minZoom: 11,
+    boundsPad: 0.11,
+    boundsPadLat: 0.11,
+    boundsPadLng: 0.14,
+    keywords: ['Baroy', 'Princesa', 'Rawan Point', 'Sagadan Baroy', 'Dalama Baroy', 'Manan-ao']
   },
   {
     id: 'SND',
@@ -138,10 +177,15 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
     shortName: 'SND',
     lat: 7.7946,
     lng: 123.7190,
-    zoom: 15,
-    minZoom: 13,
-    boundsPad: 0.055,
-    keywords: ['Sultan Naga Dimaporo', 'SND']
+    zoom: 13,
+    minZoom: 11,
+    boundsPad: 0.14,
+    boundsPadLat: 0.14,
+    boundsPadLng: 0.17,
+    keywords: [
+      'Sultan Naga Dimaporo', 'SND', 'Karomatan', 'Koreo', 'Ramain',
+      'Bauyan', 'Pikinit', 'Dableston', 'Pandanan', 'Sigayan'
+    ]
   }
 ];
 
@@ -208,10 +252,16 @@ export function doesIncidentBelongToMunicipality(inc, muniId) {
     return false;
   }
 
-  // Fall back to coordinate proximity (nearest municipality in Lanao del Norte)
+  // Fall back to coordinate proximity (inside the wide municipal bounds or nearest municipality)
   const lat = parseFloat(inc.latitude);
   const lng = parseFloat(inc.longitude);
   if (!isNaN(lat) && !isNaN(lng)) {
+    const padLat = targetMuni.boundsPadLat || targetMuni.boundsPad || 0.13;
+    const padLng = targetMuni.boundsPadLng || targetMuni.boundsPad || 0.16;
+    const withinWideBox =
+      Math.abs(lat - targetMuni.lat) <= padLat &&
+      Math.abs(lng - targetMuni.lng) <= padLng;
+
     let closestMuni = SPECIFIC_MUNICIPALITIES[0];
     let minDist = haversineKm(lat, lng, closestMuni.lat, closestMuni.lng);
     for (let i = 1; i < SPECIFIC_MUNICIPALITIES.length; i++) {
@@ -222,7 +272,7 @@ export function doesIncidentBelongToMunicipality(inc, muniId) {
         closestMuni = m;
       }
     }
-    return closestMuni.id === targetMuni.id && minDist <= 15;
+    return (closestMuni.id === targetMuni.id && minDist <= 28) || (withinWideBox && minDist <= 18);
   }
 
   return false;

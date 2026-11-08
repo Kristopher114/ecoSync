@@ -97,7 +97,7 @@ export default function DisasterMap({
       doubleClickZoom: true,
       fadeAnimation: true,
       zoomAnimation: true,
-      maxBoundsViscosity: 1.0
+      maxBoundsViscosity: 0.85
     });
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -292,34 +292,37 @@ export default function DisasterMap({
     }
 
     if (lockedMuniObj && lockedMuniObj.id !== 'ALL') {
-      const pad = lockedMuniObj.boundsPad || 0.055;
-      const bounds = L.latLngBounds(
-        [lockedMuniObj.lat - pad, lockedMuniObj.lng - pad],
-        [lockedMuniObj.lat + pad, lockedMuniObj.lng + pad]
+      const padLat = lockedMuniObj.boundsPadLat || lockedMuniObj.boundsPad || 0.13;
+      const padLng = lockedMuniObj.boundsPadLng || lockedMuniObj.boundsPad || 0.16;
+      const territoryBounds = L.latLngBounds(
+        [lockedMuniObj.lat - padLat, lockedMuniObj.lng - padLng],
+        [lockedMuniObj.lat + padLat, lockedMuniObj.lng + padLng]
       );
+      // Add generous viewport pan cushion around the wide municipal territory while retaining the jurisdiction lock
+      const panLockBounds = territoryBounds.pad(0.35);
 
       // First unlock temporarily so flyTo can smoothly move into the municipality
       map.setMaxBounds(null);
-      map.setMinZoom(lockedMuniObj.minZoom || 13);
-      map.flyTo([lockedMuniObj.lat, lockedMuniObj.lng], lockedMuniObj.zoom || 15, {
+      map.setMinZoom(lockedMuniObj.minZoom || 11);
+      map.flyTo([lockedMuniObj.lat, lockedMuniObj.lng], lockedMuniObj.zoom || 13, {
         duration: 1.0
       });
 
-      // Apply strict municipal boundary lock so the Admin's map sticks strictly inside their municipality
+      // Apply wide municipal boundary lock so the Admin's map stays locked to their municipality with ample room
       setTimeout(() => {
         if (mapInstanceRef.current) {
-          mapInstanceRef.current.setMaxBounds(bounds);
+          mapInstanceRef.current.setMaxBounds(panLockBounds);
         }
       }, 1050);
 
-      // Draw subtle jurisdiction boundary frame
+      // Draw wide municipal jurisdiction boundary frame
       if (boundaryLayerRef.current) {
-        L.rectangle(bounds, {
+        L.rectangle(territoryBounds, {
           color: '#06b6d4',
           weight: 2,
           dashArray: '6, 6',
           fillColor: '#06b6d4',
-          fillOpacity: 0.02,
+          fillOpacity: 0.015,
           interactive: false
         }).addTo(boundaryLayerRef.current);
       }
@@ -695,14 +698,15 @@ export default function DisasterMap({
         const lon = parseFloat(first.lon);
 
         if (lockedMuniObj) {
-          const pad = (lockedMuniObj.boundsPad || 0.055) + 0.02;
+          const padLat = (lockedMuniObj.boundsPadLat || lockedMuniObj.boundsPad || 0.13) + 0.05;
+          const padLng = (lockedMuniObj.boundsPadLng || lockedMuniObj.boundsPad || 0.16) + 0.05;
           const bounds = L.latLngBounds(
-            [lockedMuniObj.lat - pad, lockedMuniObj.lng - pad],
-            [lockedMuniObj.lat + pad, lockedMuniObj.lng + pad]
+            [lockedMuniObj.lat - padLat, lockedMuniObj.lng - padLng],
+            [lockedMuniObj.lat + padLat, lockedMuniObj.lng + padLng]
           );
           if (!bounds.contains([lat, lon])) {
             alert(`🔒 Jurisdiction Locked: Your Admin map is restricted exclusively to ${lockedMuniObj.shortName}.`);
-            mapInstanceRef.current.flyTo([lockedMuniObj.lat, lockedMuniObj.lng], lockedMuniObj.zoom || 15);
+            mapInstanceRef.current.flyTo([lockedMuniObj.lat, lockedMuniObj.lng], lockedMuniObj.zoom || 13);
             return;
           }
         }
@@ -725,7 +729,7 @@ export default function DisasterMap({
   // GPS "Locate Me" Button
   const handleLocateMe = () => {
     if (lockedMuniObj) {
-      mapInstanceRef.current?.flyTo([lockedMuniObj.lat, lockedMuniObj.lng], lockedMuniObj.zoom || 15, { duration: 1.2 });
+      mapInstanceRef.current?.flyTo([lockedMuniObj.lat, lockedMuniObj.lng], lockedMuniObj.zoom || 13, { duration: 1.2 });
       return;
     }
     if (!navigator.geolocation || !mapInstanceRef.current) {
