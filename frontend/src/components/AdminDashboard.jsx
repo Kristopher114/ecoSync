@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
 import {
   ShieldAlert, CheckCircle, Clock, Trash2, Edit3,
   BarChart2, AlertTriangle, RefreshCw, CheckCircle2,
-  Compass, Navigation, Layers, Database, PieChart, Lock, MapPin, PlusCircle, X, Loader2
+  Compass, Navigation, Layers, Database, PieChart, Lock, MapPin, PlusCircle, X, Loader2
 } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import { EVACUATION_SHELTERS, calculateDirectOsrmRoute } from '../sheltersData';
-import {
-  SPECIFIC_MUNICIPALITIES,
+import {
+  SPECIFIC_MUNICIPALITIES,
   getMunicipalityById,
   doesIncidentBelongToMunicipality,
   doesShelterBelongToMunicipality
@@ -36,7 +36,26 @@ export default function AdminDashboard({
 
   // Safe Evacuation Centers & OSRM Routing API (API #5)
   const [shelters, setShelters] = useState(EVACUATION_SHELTERS);
-  const effectiveShelters = externalShelters && externalShelters.length > 0 ? externalShelters : shelters;
+  const effectiveShelters = Array.isArray(externalShelters) && externalShelters.length > 0
+    ? externalShelters
+    : shelters;
+
+  const scopedIncidents = assignedMuniObj
+    ? (Array.isArray(incidents) ? incidents : []).filter(inc => doesIncidentBelongToMunicipality(inc, assignedMuniObj.id))
+    : (Array.isArray(incidents) ? incidents : []);
+
+  const scopedShelters = assignedMuniObj
+    ? (Array.isArray(effectiveShelters) ? effectiveShelters : []).filter(s => doesShelterBelongToMunicipality(s, assignedMuniObj.id))
+    : (Array.isArray(effectiveShelters) ? effectiveShelters : []);
+
+  // UI state for OSRM routing simulation, daily reset, and notifications
+  const [isSimulatingRoute, setIsSimulatingRoute] = useState(false);
+  const [routeToast, setRouteToast] = useState('');
+  const [isLoadingShelters, setIsLoadingShelters] = useState(false);
+  const [isResettingDaily, setIsResettingDaily] = useState(false);
+  const [resetToast, setResetToast] = useState('');
+  const [shelterFormError, setShelterFormError] = useState('');
+  const [shelterFormSuccess, setShelterFormSuccess] = useState('');
 
   // Interactive Shelter Map Placement State
   const defaultMuniShort = assignedMuniObj ? assignedMuniObj.shortName : 'Kapatagan';
@@ -190,13 +209,7 @@ export default function AdminDashboard({
     }
   };
 
-    const scopedIncidents = assignedMuniObj
-    ? incidents.filter(inc => doesIncidentBelongToMunicipality(inc, assignedMuniObj.id))
-    : incidents;
-
-  const scopedShelters = assignedMuniObj
-    ? effectiveShelters.filter(s => doesShelterBelongToMunicipality(s, assignedMuniObj.id))
-    : effectiveShelters;
+  // (scopedIncidents & scopedShelters initialized at top of component)
 
   // Helper to check if an ISO date string matches today's calendar date
   const isDateToday = (dateStr) => {

@@ -20,6 +20,50 @@ import './App.css';
 
 const CATEGORIES = ['All', 'Flood', 'Medical', 'Fire', 'Rescue', 'Food & Water', 'General'];
 
+class DashboardErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error('AdminDashboard Render Error:', error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '40px 20px', maxWidth: '600px', margin: '40px auto', textAlign: 'center', background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(239, 68, 68, 0.4)', borderRadius: '16px', color: '#f8fafc', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
+          <ShieldAlert size={48} color="#ef4444" style={{ margin: '0 auto 16px' }} />
+          <h2 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: '8px' }}>Admin Command Hub Recovery</h2>
+          <p style={{ color: '#94a3b8', fontSize: '0.88rem', marginBottom: '20px', lineHeight: 1.5 }}>
+            A temporary render error was intercepted in the Admin view: <br/>
+            <code style={{ background: 'rgba(0,0,0,0.4)', padding: '4px 8px', borderRadius: '4px', color: '#fca5a5' }}>
+              {this.state.error?.message || 'Unknown error'}
+            </code>
+          </p>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+            <button
+              onClick={() => this.setState({ hasError: false, error: null })}
+              style={{ background: '#0284c7', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 700 }}
+            >
+              🔄 Retry Hub
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
+            >
+              Reload Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('map'); // 'map' | 'admin'
   const [currentUser, setCurrentUser] = useState(() => {
@@ -616,17 +660,19 @@ export default function App() {
         /* Admin Command Hub (Role Protected) */
         <main>
           {isAdmin ? (
-            <AdminDashboard
-              incidents={jurisdictionScopedIncidents}
-              onUpdateStatus={handleUpdateStatus}
-              onDeleteIncident={handleDeleteIncident}
-              assignedMunicipality={adminMunicipality}
-              currentUser={currentUser}
-              shelters={shelters}
-              onAddShelter={handleAddShelter}
-              onDeleteShelter={handleDeleteShelter}
-              onRefreshShelters={fetchShelters}
-            />
+            <DashboardErrorBoundary>
+              <AdminDashboard
+                incidents={jurisdictionScopedIncidents}
+                onUpdateStatus={handleUpdateStatus}
+                onDeleteIncident={handleDeleteIncident}
+                assignedMunicipality={adminMunicipality}
+                currentUser={currentUser}
+                shelters={shelters}
+                onAddShelter={handleAddShelter}
+                onDeleteShelter={handleDeleteShelter}
+                onRefreshShelters={fetchShelters}
+              />
+            </DashboardErrorBoundary>
           ) : (
             <div className="admin-access-locked glass-panel">
               <div className="locked-card">
