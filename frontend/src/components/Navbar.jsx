@@ -16,13 +16,13 @@ export default function Navbar({
 
   const handleAdminTabClick = () => {
     if (!currentUser) {
-      if (window.confirm('The Admin Command Hub requires logging in as an Admin Coordinator. Would you like to sign in now?')) {
-        onOpenAuth();
+      if (window.confirm('The Admin Command Hub requires logging in as an Admin Coordinator. Would you like to sign in to the Admin Portal now?')) {
+        onOpenAuth('admin');
       }
       return;
     }
     if (!isAdmin) {
-      alert('Access Restricted: Your current account has the "Citizen / Volunteer" role. Please sign in with an Admin Coordinator account.');
+      alert('Access Restricted: Your current account has the "Citizen / Volunteer" role. The Command Hub is strictly reserved for Municipal Admin Coordinators.');
       return;
     }
     setActiveTab('admin');
@@ -86,14 +86,28 @@ export default function Navbar({
             </button>
           </div>
         ) : (
-          <button
-            id="btn-open-auth"
-            className="btn-auth-signin"
-            onClick={onOpenAuth}
-          >
-            <LogIn size={15} />
-            <span>Sign In / Register</span>
-          </button>
+          <div className="auth-nav-capsule">
+            <button
+              id="btn-open-volunteer-auth"
+              type="button"
+              className="auth-capsule-item volunteer"
+              onClick={() => onOpenAuth('user')}
+              title="Citizen & Volunteer Sign In / Registration"
+            >
+              <User size={14} />
+              <span>Volunteer Log In</span>
+            </button>
+            <button
+              id="btn-open-admin-auth"
+              type="button"
+              className="auth-capsule-item admin"
+              onClick={() => onOpenAuth('admin')}
+              title="Municipal Admin Coordinator Portal"
+            >
+              <ShieldCheck size={14} />
+              <span>Admin Portal</span>
+            </button>
+          </div>
         )}
 
         <button

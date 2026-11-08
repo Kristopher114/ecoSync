@@ -74,11 +74,17 @@ export default function App() {
   });
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authPortal, setAuthPortal] = useState('user'); // 'user' | 'admin'
   const [clickedCoords, setClickedCoords] = useState(null);
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeBroadcastAlert, setActiveBroadcastAlert] = useState(null);
   const [isMapExpanded, setIsMapExpanded] = useState(false);
+
+  const handleOpenAuth = (portal = 'user') => {
+    setAuthPortal(portal);
+    setIsAuthOpen(true);
+  };
 
   // Sync selectedMunicipality whenever an Admin logs in or logs out
   useEffect(() => {
@@ -155,8 +161,8 @@ export default function App() {
 
   const handleOpenReport = () => {
     if (!currentUser) {
-      if (window.confirm('🔒 Sign In Required:\n\nSubmitting emergency incident reports requires signing in as a Registered Citizen/Volunteer to maintain verified reporting and prevent spam dispatches.\n\nWould you like to sign in or register now?')) {
-        setIsAuthOpen(true);
+      if (window.confirm('🔒 Sign In Required:\n\nSubmitting emergency incident reports requires signing in as a Registered Citizen/Volunteer to maintain verified reporting and prevent spam dispatches.\n\nWould you like to sign in or register as a Volunteer now?')) {
+        handleOpenAuth('user');
       }
       return;
     }
@@ -166,8 +172,8 @@ export default function App() {
   const handleOpenReportWithLocation = (lat, lng, address) => {
     setClickedCoords({ lat, lng, address });
     if (!currentUser) {
-      if (window.confirm('🔒 Sign In Required:\n\nSubmitting emergency incident reports requires signing in as a Registered Citizen/Volunteer to maintain verified reporting and prevent spam dispatches.\n\nWould you like to sign in or register now?')) {
-        setIsAuthOpen(true);
+      if (window.confirm('🔒 Sign In Required:\n\nSubmitting emergency incident reports requires signing in as a Registered Citizen/Volunteer to maintain verified reporting and prevent spam dispatches.\n\nWould you like to sign in or register as a Volunteer now?')) {
+        handleOpenAuth('user');
       }
       return;
     }
@@ -178,7 +184,7 @@ export default function App() {
   const handleVolunteerIncident = async (incidentId) => {
     if (!currentUser) {
       if (window.confirm('🔒 Volunteer Sign In Required:\n\nPlease sign in or register as a Citizen/Volunteer to register as an on-site responder for this emergency.\n\nWould you like to sign in now?')) {
-        setIsAuthOpen(true);
+        handleOpenAuth('user');
       }
       return;
     }
@@ -308,7 +314,7 @@ export default function App() {
         setActiveTab={setActiveTab}
         onOpenReport={handleOpenReport}
         currentUser={currentUser}
-        onOpenAuth={() => setIsAuthOpen(true)}
+        onOpenAuth={handleOpenAuth}
         onSignOut={handleSignOut}
       />
 
@@ -595,6 +601,7 @@ export default function App() {
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
         onAuthSuccess={handleAuthSuccess}
+        initialPortal={authPortal}
       />
     </div>
   );

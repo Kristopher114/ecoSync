@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Lock, User, ShieldCheck, LogIn, UserPlus, Loader2, AlertCircle, MapPin } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import { SPECIFIC_MUNICIPALITIES, getMunicipalityById } from '../municipalities';
@@ -30,19 +30,35 @@ function saveStoredMunicipality(username, muniId, muniName) {
   }
 }
 
-export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
+export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialPortal = 'user' }) {
+  const [portal, setPortal] = useState(initialPortal); // 'user' | 'admin'
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('user'); // 'user' | 'admin'
   const [municipality, setMunicipality] = useState('KAPATAGAN');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
+  // Sync portal when modal opens or initialPortal changes
+  useEffect(() => {
+    if (isOpen) {
+      setPortal(initialPortal || 'user');
+      setErrorMessage('');
+      setSuccessMessage('');
+    }
+  }, [isOpen, initialPortal]);
+
   if (!isOpen) return null;
 
+  const isAdminPortal = portal === 'admin';
   const selectedMuniObj = getMunicipalityById(municipality);
+
+  const handlePortalSwitch = (newPortal) => {
+    setPortal(newPortal);
+    setErrorMessage('');
+    setSuccessMessage('');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -55,7 +71,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
       return;
     }
 
-    if (!isLoginMode && role === 'admin' && (!municipality || municipality === 'ALL')) {
+    if (!isLoginMode && isAdminPortal && (!municipality || municipality === 'ALL')) {
       setErrorMessage('Admin coordinators must select a specific Municipality / City jurisdiction.');
       return;
     }
@@ -72,9 +88,9 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
         : {
             username: cleanUser,
             password,
-            role,
-            municipality: role === 'admin' ? selectedMuniObj.id : null,
-            municipality_name: role === 'admin' ? selectedMuniObj.shortName : null
+            role: isAdminPortal ? 'admin' : 'user',
+            municipality: isAdminPortal ? selectedMuniObj.id : null,
+            municipality_name: isAdminPortal ? selectedMuniObj.shortName : null
           };
 
       const res = await fetch(endpoint, {
@@ -91,7 +107,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
         const storedMap = getStoredMunicipalityMap();
         if (
           !isLoginMode &&
-          role === 'admin' &&
+          isAdminPortal &&
           data.error &&
           data.error.toLowerCase().includes('already taken') &&
           !storedMap[cleanUser] &&
@@ -122,6 +138,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           userRole = 'admin';
         }
 
+        // Strict role validation based on the active portal capsule
+        if (isAdminPortal && userRole !== 'admin') {
+          throw new Error('Access Denied: This account has the Citizen / Volunteer role. Please switch to the "👤 Citizen / Volunteer" capsule above to sign in.');
+        }
+
         const resolvedMuniId =
           (cleanUser === 'admin_kapatagan' ? 'KAPATAGAN' : null) ||
           (cleanUser === 'admin_iligan' ? 'ILIGAN' : null) ||
@@ -149,9 +170,9 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
             // ignore network error
           }
           setIsLoginMode(false);
-          setRole('admin');
+          setPortal('admin');
           throw new Error(
-            `Account "${cleanUser}" had no assigned municipality and was removed. Please select your Municipality below and click Create Account.`
+            `Account "${cleanUser}" had no assigned municipality and was reset. Please select your Municipality below and click Register Admin.`
           );
         }
 
@@ -167,13 +188,13 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
         onClose();
       } else {
         // User registered
-        if (role === 'admin') {
+        if (isAdminPortal) {
           saveStoredMunicipality(cleanUser, selectedMuniObj.id, selectedMuniObj.shortName);
         }
         setSuccessMessage(
-          role === 'admin'
-            ? `Admin account registered for ${selectedMuniObj.shortName} jurisdiction! Signing you in...`
-            : 'Account registered successfully! You can now sign in.'
+          isAdminPortal
+            ? `Admin account registered for ${selectedMuniObj.shortName} jurisdiction! You can now sign in.`
+            : 'Volunteer account registered successfully! You can now sign in.'
         );
         setTimeout(() => {
           setIsLoginMode(true);
@@ -193,15 +214,61 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
         {/* Header */}
         <div className="modal-header-compact">
           <div className="modal-title-wrapper">
-            <Lock className="text-cyan" size={18} />
-            <h3>{isLoginMode ? 'Sign In to EcoLanao' : 'Create an Account'}</h3>
+            {isAdminPortal ? (
+              <ShieldCheck className="text-red" size={20} />
+            ) : (
+              <User className="text-cyan" size={20} />
+            )}
+            <div>
+              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800 }}>
+                {isAdminPortal ? 'Municipal Admin Portal' : 'Citizen & Volunteer Portal'}
+              </h3>
+              <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: '#94a3b8' }}>
+                EcoLanao Emergency Response Platform
+              </p>
+            </div>
           </div>
           <button id="auth-modal-close-btn" className="icon-close-btn" onClick={onClose}>
             <X size={18} />
           </button>
         </div>
 
-        {/* Tab Switcher: Login vs Register */}
+        {/* Top Capsule Switcher: Volunteer vs Admin */}
+        <div className="portal-capsule-switcher">
+          <button
+            type="button"
+            id="capsule-switch-volunteer"
+            className={`portal-capsule-btn ${!isAdminPortal ? 'active-volunteer' : ''}`}
+            onClick={() => handlePortalSwitch('user')}
+          >
+            <User size={15} />
+            <span>👤 Citizen / Volunteer</span>
+          </button>
+          <button
+            type="button"
+            id="capsule-switch-admin"
+            className={`portal-capsule-btn ${isAdminPortal ? 'active-admin' : ''}`}
+            onClick={() => handlePortalSwitch('admin')}
+          >
+            <ShieldCheck size={15} />
+            <span>🛡️ Municipal Admin</span>
+          </button>
+        </div>
+
+        {/* Portal Context Banner */}
+        <div className={`portal-banner ${isAdminPortal ? 'banner-admin' : 'banner-volunteer'}`}>
+          {isAdminPortal ? (
+            <span>
+              🛡️ <strong>Official LGU Command Hub</strong>: For Municipal Coordinators to manage localized alerts, review dispatches, and oversee jurisdiction shelters.
+            </span>
+          ) : (
+            <span>
+              👤 <strong>Citizen / Volunteer Portal</strong>: Submit verified emergency reports, receive live alerts, and volunteer for on-site relief efforts.
+            </span>
+          )}
+        </div>
+
+        {/* Subtab Switcher: Login vs Register */}
         <div className="auth-tab-switch">
           <button
             type="button"
@@ -209,7 +276,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
             onClick={() => { setIsLoginMode(true); setErrorMessage(''); }}
           >
             <LogIn size={15} />
-            <span>Sign In</span>
+            <span>{isAdminPortal ? 'Admin Sign In' : 'Volunteer Sign In'}</span>
           </button>
           <button
             type="button"
@@ -217,7 +284,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
             onClick={() => { setIsLoginMode(false); setErrorMessage(''); }}
           >
             <UserPlus size={15} />
-            <span>Register (User / Admin)</span>
+            <span>{isAdminPortal ? 'Register Admin' : 'Register Volunteer'}</span>
           </button>
         </div>
 
@@ -238,13 +305,13 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
         <form onSubmit={handleSubmit} className="auth-form">
           {/* Username */}
           <div className="form-group-compact">
-            <label>Username</label>
+            <label>{isAdminPortal ? 'Admin Username' : 'Volunteer Username'}</label>
             <div className="input-with-icon">
-              <User size={15} className="input-icon" />
+              {isAdminPortal ? <ShieldCheck size={15} className="input-icon text-red" /> : <User size={15} className="input-icon text-cyan" />}
               <input
                 id="auth-username-input"
                 type="text"
-                placeholder="e.g. admin_kapatagan or volunteer_1"
+                placeholder={isAdminPortal ? 'e.g. admin_kapatagan or admin_iligan' : 'e.g. volunteer_juan'}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
@@ -266,51 +333,13 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={4}
-                autoComplete={isLoginMode ? "current-password" : "new-password"}
+                autoComplete={isLoginMode ? 'current-password' : 'new-password'}
               />
             </div>
           </div>
 
-          {/* Role Selection on Register */}
-          {!isLoginMode && (
-            <div className="form-group-compact">
-              <label>Select Your System Role</label>
-              <div className="role-radio-group">
-                <label className={`role-radio-card ${role === 'user' ? 'selected' : ''}`}>
-                  <input
-                    type="radio"
-                    name="role"
-                    value="user"
-                    checked={role === 'user'}
-                    onChange={() => setRole('user')}
-                  />
-                  <User size={16} className="text-cyan" />
-                  <div>
-                    <strong>Citizen / Volunteer</strong>
-                    <p>Submit verified emergency reports & join on-site relief response squads</p>
-                  </div>
-                </label>
-
-                <label className={`role-radio-card ${role === 'admin' ? 'selected' : ''}`}>
-                  <input
-                    type="radio"
-                    name="role"
-                    value="admin"
-                    checked={role === 'admin'}
-                    onChange={() => setRole('admin')}
-                  />
-                  <ShieldCheck size={16} className="text-red" />
-                  <div>
-                    <strong>Admin Coordinator</strong>
-                    <p>Manage assigned Municipality Command Hub & locked map</p>
-                  </div>
-                </label>
-              </div>
-            </div>
-          )}
-
           {/* Specific Municipality Jurisdiction Selector (Mandatory when registering an Admin) */}
-          {!isLoginMode && role === 'admin' && (
+          {!isLoginMode && isAdminPortal && (
             <div
               className="form-group-compact"
               style={{
@@ -322,7 +351,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
             >
               <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#fca5a5', fontWeight: 700, marginBottom: '6px' }}>
                 <MapPin size={14} className="text-red" />
-                <span>Assigned Municipality / City Jurisdiction (Required)</span>
+                <span>Assigned Municipality Jurisdiction (Required)</span>
               </label>
               <select
                 id="auth-admin-municipality-select"
@@ -355,7 +384,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
           {/* Quick Demo Helper Hint */}
           <div className="demo-login-hint">
-            💡 <span>Demo Accounts: <strong>admin_iligan</strong> (Iligan • pass: <code>admin123</code>), <strong>admin_kapatagan</strong> (Kapatagan • pass: <code>admin123</code>), or <strong>volunteer</strong> (pass: <code>volunteer123</code>).</span>
+            {isAdminPortal ? (
+              <span>💡 Admin Demo: <strong>admin_iligan</strong> (pass: <code>admin123</code>) or <strong>admin_kapatagan</strong> (pass: <code>admin123</code>)</span>
+            ) : (
+              <span>💡 Volunteer Demo: <strong>volunteer</strong> (pass: <code>volunteer123</code>) or register any new username</span>
+            )}
           </div>
 
           {/* Action Button */}
@@ -363,7 +396,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
             <button
               id="auth-submit-btn"
               type="submit"
-              className="btn-primary"
+              className={isAdminPortal ? 'btn-primary btn-portal-admin' : 'btn-primary'}
               style={{ width: '100%', justifyContent: 'center' }}
               disabled={isLoading}
             >
@@ -375,7 +408,15 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
               ) : (
                 <>
                   {isLoginMode ? <LogIn size={16} /> : <UserPlus size={16} />}
-                  <span>{isLoginMode ? 'Sign In' : role === 'admin' ? `Register Admin (${selectedMuniObj.shortName})` : 'Create Account'}</span>
+                  <span>
+                    {isLoginMode
+                      ? isAdminPortal
+                        ? 'Sign In to Admin Portal'
+                        : 'Sign In as Volunteer'
+                      : isAdminPortal
+                        ? `Register Admin (${selectedMuniObj.shortName})`
+                        : 'Register Volunteer Account'}
+                  </span>
                 </>
               )}
             </button>

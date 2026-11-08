@@ -51,3 +51,16 @@ CREATE POLICY "Allow public all access on app_users"
 ON public.app_users FOR ALL
 USING (true)
 WITH CHECK (true);
+
+-- Seed Default Accounts (SHA-256 hashed passwords)
+-- Password for volunteer is "volunteer123"
+-- Password for admins is "admin123"
+INSERT INTO public.app_users (username, password, role, municipality, municipality_name)
+VALUES
+    ('volunteer', '69c5e317e0ef6b9d6fa33c3aa74b295fd250ec4b8686ea95d3ab885c39ee7eef', 'user', NULL, NULL),
+    ('admin_iligan', '0192023a7bbd73250516f069df18b500ee36ca940e0e549ec8b25a5fc6eeb251', 'admin', 'ILIGAN', 'Iligan City'),
+    ('admin_kapatagan', '0192023a7bbd73250516f069df18b500ee36ca940e0e549ec8b25a5fc6eeb251', 'admin', 'KAPATAGAN', 'Kapatagan')
+ON CONFLICT (username) DO UPDATE
+SET role = EXCLUDED.role,
+    municipality = EXCLUDED.municipality,
+    municipality_name = EXCLUDED.municipality_name;
