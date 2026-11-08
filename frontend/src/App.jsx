@@ -366,6 +366,8 @@ export default function App() {
               </div>
             </div>
             <WeatherWidget
+              selectedMunicipality={selectedMunicipality}
+              onSelectMunicipality={(muniId) => setSelectedMunicipality(muniId)}
               pinnedLocation={
                 selectedIncident
                   ? {

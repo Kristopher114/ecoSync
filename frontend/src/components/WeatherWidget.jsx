@@ -1,13 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import {
   CloudRain, Wind, AlertTriangle, Newspaper, RefreshCw,
-  MapPin, Sun, Cloud, Zap, Droplets, ExternalLink, ShieldAlert
+  MapPin, Sun, Cloud, Zap, Droplets, ExternalLink
 } from 'lucide-react';
+import { LANAO_DEL_NORTE_MUNICIPALITIES } from '../municipalities';
 import { API_BASE_URL } from '../config';
 
-export default function WeatherWidget({ pinnedLocation }) {
+export default function WeatherWidget({
+  pinnedLocation,
+  selectedMunicipality = 'ILIGAN',
+  onSelectMunicipality
+}) {
   const [weather, setWeather] = useState(null);
-  const [locationLabel, setLocationLabel] = useState('Poblacion, Iligan Region');
+  const [activeMuniId, setActiveMuniId] = useState(
+    selectedMunicipality && selectedMunicipality !== 'ALL' ? selectedMunicipality : 'ILIGAN'
+  );
+  const [usePinnedOverride, setUsePinnedOverride] = useState(false);
+  const [locationLabel, setLocationLabel] = useState('Iligan City');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -16,9 +25,15 @@ export default function WeatherWidget({ pinnedLocation }) {
   const [newsSource, setNewsSource] = useState('Live Disaster News Wire Feed');
   const [isNewsLoading, setIsNewsLoading] = useState(true);
 
-  // Default coordinate (Iligan / Northern Mindanao region)
-  const activeLat = pinnedLocation?.lat || 8.1033;
-  const activeLng = pinnedLocation?.lng || 124.0673;
+  const selectedMuniObj =
+    LANAO_DEL_NORTE_MUNICIPALITIES.find((m) => m.id === activeMuniId) ||
+    LANAO_DEL_NORTE_MUNICIPALITIES.find((m) => m.id === 'ILIGAN') ||
+    LANAO_DEL_NORTE_MUNICIPALITIES[0];
+
+  const activeLat =
+    usePinnedOverride && pinnedLocation?.lat ? pinnedLocation.lat : selectedMuniObj.lat;
+  const activeLng =
+    usePinnedOverride && pinnedLocation?.lng ? pinnedLocation.lng : selectedMuniObj.lng;
 
   // Fetch real-time live weather from backend endpoint (Open-Meteo API)
   const fetchWeather = async (lat, lng, label, showRefreshSpinner = false) => {
@@ -61,16 +76,54 @@ export default function WeatherWidget({ pinnedLocation }) {
     }
   };
 
+  // Sync when top Jurisdiction filter changes in App.jsx
+  useEffect(() => {
+    if (selectedMunicipality) {
+      setUsePinnedOverride(false);
+      setActiveMuniId(selectedMunicipality);
+    }
+  }, [selectedMunicipality]);
+
   // Re-fetch weather whenever user clicks or drops a pin on the map
   useEffect(() => {
-    const label = pinnedLocation?.name || (pinnedLocation?.lat ? `Pinned: ${Number(pinnedLocation.lat).toFixed(3)}, ${Number(pinnedLocation.lng).toFixed(3)}` : 'Poblacion, Iligan Region');
-    fetchWeather(activeLat, activeLng, label);
+    if (pinnedLocation?.lat && pinnedLocation?.lng) {
+      setUsePinnedOverride(true);
+      const label =
+        pinnedLocation.name ||
+        `Pinned: ${Number(pinnedLocation.lat).toFixed(3)}, ${Number(pinnedLocation.lng).toFixed(3)}`;
+      fetchWeather(pinnedLocation.lat, pinnedLocation.lng, label, true);
+    }
   }, [pinnedLocation?.lat, pinnedLocation?.lng]);
+
+  // Re-fetch weather when activeMuniId changes (and not overridden by a freshly clicked pin)
+  useEffect(() => {
+    if (!usePinnedOverride && selectedMuniObj) {
+      fetchWeather(
+        selectedMuniObj.lat,
+        selectedMuniObj.lng,
+        selectedMuniObj.shortName || selectedMuniObj.name,
+        Boolean(weather)
+      );
+    }
+  }, [activeMuniId, usePinnedOverride]);
 
   // Fetch live disaster news on initial load
   useEffect(() => {
     fetchNews();
   }, []);
+
+  const handleMunicipalityChange = (e) => {
+    const newId = e.target.value;
+    if (newId === 'PINNED') {
+      setUsePinnedOverride(true);
+      return;
+    }
+    setUsePinnedOverride(false);
+    setActiveMuniId(newId);
+    if (onSelectMunicipality) {
+      onSelectMunicipality(newId);
+    }
+  };
 
   const handleManualRefresh = () => {
     fetchWeather(activeLat, activeLng, locationLabel, true);
@@ -125,10 +178,26 @@ export default function WeatherWidget({ pinnedLocation }) {
           </button>
         </div>
 
-        {/* Dynamic Location Pin Badge */}
-        <div className="weather-location-chip" title={locationLabel}>
-          <MapPin size={12} className="text-cyan" />
-          <span className="location-name-truncate">{locationLabel}</span>
+        {/* Municipality / City Dropdown Selector inside Live Weather Radar */}
+        <div className="weather-location-chip weather-dropdown-chip" title={locationLabel}>
+          <MapPin size={13} className="text-cyan" />
+          <select
+            id="weather-radar-municipality-dropdown"
+            className="weather-muni-select"
+            value={usePinnedOverride && pinnedLocation?.lat ? 'PINNED' : activeMuniId}
+            onChange={handleMunicipalityChange}
+          >
+            {usePinnedOverride && pinnedLocation?.lat && (
+              <option value="PINNED">
+                📌 Pinned: {locationLabel}
+              </option>
+            )}
+            {LANAO_DEL_NORTE_MUNICIPALITIES.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.id === 'ALL' ? '🌐 All Lanao del Norte (Provincial Radar)' : `📍 ${m.name}`}
+              </option>
+            ))}
+          </select>
           {weather?.cached && <span className="cache-pill">Cached</span>}
         </div>
 
