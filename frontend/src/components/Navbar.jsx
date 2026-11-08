@@ -39,7 +39,7 @@ export default function Navbar({
           <div>
             <h1 className="logo-title">EcoSync</h1>
             <span className="logo-subtitle">
-              {adminMuniLabel ? `🔒 ${adminMuniLabel} Jurisdiction` : 'Disaster & Relief Coordinator'}
+              {adminMuniLabel ? `🔒 ${adminMuniLabel}` : 'Disaster & Relief Coordinator'}
             </span>
           </div>
         </div>
