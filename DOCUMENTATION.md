@@ -80,7 +80,9 @@ The system features **two distinct user roles**:
 
 ### 7. `frontend/src/components/AdminDashboard.jsx` & `DisasterMap.jsx` (Safe Evacuation Shelters & OSRM Navigation - API #5)
 
-- **Functionality**: Real-time emergency evacuation center directory and live turn-by-turn road routing navigation powered by the Open Source Routing Machine (OSRM).
+- **Functionality**: Real-time emergency evacuation center directory covering the entire province of Lanao del Norte (18 verified centers across 12 municipalities) and live turn-by-turn road routing navigation powered by the Open Source Routing Machine (OSRM).
+- **Features**:
+  - **Province-Wide Coverage & Jurisdiction Filter**: Expanded across Tubod (Provincial Capital / MCC), Kapatagan, Lala, Kauswagan, Linamon, Kolambugan, Bacolod, Balo-i, Maigo, Baroy, Sultan Naga Dimaporo, and Iligan City. Features a smooth **Jurisdiction / Municipality Dropdown** that flies the camera to the chosen municipality and highlights corresponding incidents.
 - **Features**:
   - **API #5: Safe Evacuation Routing & Shelter Directory (OSRM Engine)**: Real-time turn-by-turn road routing between any map point (or incident) and designated evacuation facilities.
   - **"View All Evacuation Centers" Toggle**: Displays verified regional shelters on the map with custom emerald shield markers (`🛡️` / `🏥`), capacity progress meters, and amenity tags (Power, Medical, Food/Water).

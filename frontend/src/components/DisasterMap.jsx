@@ -17,6 +17,8 @@ export default function DisasterMap({
   incidents,
   selectedCategory,
   dateFilter = 'today',
+  selectedMunicipality = 'ALL',
+  targetLocation,
   onMapClick,
   selectedIncident,
   onSelectIncident,
@@ -72,13 +74,14 @@ export default function DisasterMap({
     if (!mapContainerRef.current) return;
     if (mapInstanceRef.current) return;
 
-    // Default center (Iligan / Northern Mindanao region)
-    const defaultLat = 8.2280;
-    const defaultLng = 124.2450;
+    // Default center (Province of Lanao del Norte / target location)
+    const defaultLat = targetLocation?.lat || 8.0800;
+    const defaultLng = targetLocation?.lng || 123.9500;
+    const defaultZoom = targetLocation?.zoom || 10;
 
     const map = L.map(mapContainerRef.current, {
       center: [defaultLat, defaultLng],
-      zoom: 13,
+      zoom: defaultZoom,
       zoomControl: false,
       scrollWheelZoom: true,
       doubleClickZoom: true,
@@ -344,14 +347,35 @@ export default function DisasterMap({
     setActiveRoute(null);
   };
 
+  // Filter shelters according to selected municipality (or show all province-wide)
+  const displayedShelters = selectedMunicipality === 'ALL'
+    ? shelters
+    : shelters.filter(s => {
+        if (!s.municipality) return true;
+        const sMuni = s.municipality.toLowerCase();
+        if (selectedMunicipality === 'ILIGAN') return sMuni.includes('iligan');
+        if (selectedMunicipality === 'TUBOD') return sMuni.includes('tubod');
+        if (selectedMunicipality === 'KAPATAGAN') return sMuni.includes('kapatagan');
+        if (selectedMunicipality === 'LALA') return sMuni.includes('lala');
+        if (selectedMunicipality === 'KAUSWAGAN') return sMuni.includes('kauswagan');
+        if (selectedMunicipality === 'LINAMON') return sMuni.includes('linamon');
+        if (selectedMunicipality === 'BACOLOD') return sMuni.includes('bacolod');
+        if (selectedMunicipality === 'KOLAMBUGAN') return sMuni.includes('kolambugan');
+        if (selectedMunicipality === 'BALOI') return sMuni.includes('baloi') || sMuni.includes('balo-i');
+        if (selectedMunicipality === 'MAIGO') return sMuni.includes('maigo');
+        if (selectedMunicipality === 'BAROY') return sMuni.includes('baroy');
+        if (selectedMunicipality === 'SND') return sMuni.includes('sultan naga') || sMuni.includes('snd');
+        return true;
+      });
+
   // Render Evacuation Shelter Markers on Map (Green Shield Icons)
   useEffect(() => {
     if (!mapInstanceRef.current || !sheltersLayerRef.current) return;
 
     sheltersLayerRef.current.clearLayers();
-    if (!showShelters || shelters.length === 0) return;
+    if (!showShelters || displayedShelters.length === 0) return;
 
-    shelters.forEach(shelter => {
+    displayedShelters.forEach(shelter => {
       const isHospital = shelter.type.includes('Medical') || shelter.type.includes('Hospital');
       const shelterIcon = L.divIcon({
         className: 'shelter-marker-icon',
@@ -392,7 +416,9 @@ export default function DisasterMap({
           <span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: bold; text-transform: uppercase;">
             ${shelter.type}
           </span>
-          <span style="font-size: 11px; color: #10b981; font-weight: 600;">${shelter.status}</span>
+          <span style="background: rgba(6, 182, 212, 0.15); color: #38bdf8; border: 1px solid rgba(6, 182, 212, 0.3); padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 600;">
+            📍 ${shelter.municipality || 'Lanao del Norte'}
+          </span>
         </div>
         <h4 style="margin: 0 0 4px 0; color: #f8fafc; font-size: 14px; font-weight: 700;">${shelter.name}</h4>
         <p style="margin: 0 0 8px 0; color: #94a3b8; font-size: 11px;">📍 ${shelter.address}</p>
@@ -443,7 +469,7 @@ export default function DisasterMap({
       marker.bindPopup(popupDiv);
       sheltersLayerRef.current.addLayer(marker);
     });
-  }, [shelters, showShelters, activePinCoords, selectedIncident]);
+  }, [shelters, displayedShelters, showShelters, activePinCoords, selectedIncident]);
 
   // Update Incident Markers
   useEffect(() => {

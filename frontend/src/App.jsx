@@ -7,8 +7,9 @@ import ReportModal from './components/ReportModal';
 import AuthModal from './components/AuthModal';
 import {
   ShieldAlert, Lock, UserPlus, Radio, CheckCircle2, X,
-  Calendar, Clock, Filter
+  Calendar, Clock, Filter, MapPin
 } from 'lucide-react';
+import { LANAO_DEL_NORTE_MUNICIPALITIES } from './municipalities';
 import { API_BASE_URL } from './config';
 import './App.css';
 
@@ -27,6 +28,7 @@ export default function App() {
 
   const [incidents, setIncidents] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedMunicipality, setSelectedMunicipality] = useState('ALL');
   const [dateFilter, setDateFilter] = useState('today'); // 'today' | '24h' | 'custom' | 'all'
   const [selectedCustomDate, setSelectedCustomDate] = useState(() => {
     const now = new Date();
@@ -166,10 +168,26 @@ export default function App() {
     return true;
   });
 
-  // Filter by category
-  const displayedIncidents = selectedCategory === 'All'
+  const activeMunicipalityObj = LANAO_DEL_NORTE_MUNICIPALITIES.find(m => m.id === selectedMunicipality) || LANAO_DEL_NORTE_MUNICIPALITIES[0];
+
+  // Filter by category first
+  const categoryFilteredIncidents = selectedCategory === 'All'
     ? dateFilteredIncidents
     : dateFilteredIncidents.filter(inc => inc.category === selectedCategory);
+
+  // Filter by Municipality / Jurisdiction
+  const displayedIncidents = selectedMunicipality === 'ALL'
+    ? categoryFilteredIncidents
+    : categoryFilteredIncidents.filter(inc => {
+        if (!activeMunicipalityObj || !activeMunicipalityObj.keywords || activeMunicipalityObj.keywords.length === 0) return true;
+        const loc = (inc.location_name || '').toLowerCase();
+        const title = (inc.title || '').toLowerCase();
+        const desc = (inc.description || '').toLowerCase();
+        return activeMunicipalityObj.keywords.some(kw => {
+          const k = kw.toLowerCase();
+          return loc.includes(k) || title.includes(k) || desc.includes(k);
+        });
+      });
 
   const todayFormatted = new Date().toLocaleDateString('en-US', {
     weekday: 'short',
@@ -221,6 +239,27 @@ export default function App() {
             {/* Filter Category Chips & Actions */}
             <div className="filter-controls-wrapper">
               <div className="filter-bar glass-panel">
+                {/* Lanao del Norte Municipality Dropdown Filter */}
+                <div className="municipality-select-wrap">
+                  <MapPin size={14} className="text-cyan" />
+                  <span className="filter-group-label">Jurisdiction:</span>
+                  <select
+                    id="municipality-dropdown-filter"
+                    className="municipality-dropdown-select"
+                    value={selectedMunicipality}
+                    onChange={(e) => setSelectedMunicipality(e.target.value)}
+                    title="Filter emergencies and navigate map across Lanao del Norte municipalities"
+                  >
+                    {LANAO_DEL_NORTE_MUNICIPALITIES.map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="filter-divider" />
+
                 <span className="filter-group-label">Category:</span>
                 {CATEGORIES.map(cat => (
                   <button
@@ -306,7 +345,7 @@ export default function App() {
               <div className="map-top-info-bar glass-panel">
                 <div className="map-top-info-left">
                   <span className="map-info-status">
-                    📅 {dateFilter === 'today' ? "Showing Today's Landmarks (Daily Reset Active)" : dateFilter === '24h' ? "Showing Landmarks from Past 24 Hours" : dateFilter === 'custom' ? `Showing Landmarks for ${selectedCustomDate}` : "Showing All Historical Landmarks"}
+                    📍 <strong>{activeMunicipalityObj.shortName || activeMunicipalityObj.name}</strong> • 📅 {dateFilter === 'today' ? "Today's Landmarks (Daily Reset Active)" : dateFilter === '24h' ? "Past 24 Hours" : dateFilter === 'custom' ? `Date: ${selectedCustomDate}` : "All Historical"} ({displayedIncidents.length} active)
                   </span>
                 </div>
                 <div className="map-top-info-right">
@@ -320,6 +359,8 @@ export default function App() {
               incidents={displayedIncidents}
               selectedCategory={selectedCategory}
               dateFilter={dateFilter}
+              selectedMunicipality={selectedMunicipality}
+              targetLocation={activeMunicipalityObj}
               onMapClick={handleMapClick}
               selectedIncident={selectedIncident}
               onSelectIncident={(inc) => setSelectedIncident(inc)}

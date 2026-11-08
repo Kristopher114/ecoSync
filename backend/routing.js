@@ -1,11 +1,13 @@
 // Safe Evacuation Routing & Shelter Navigation Service (API #5 - OSRM Engine)
 const https = require('https');
 
-// Designated Emergency Evacuation Centers & Medical Relief Hubs (Geographically Verified Landmarks in Iligan City)
+// Designated Emergency Evacuation Centers & Medical Relief Hubs across Lanao del Norte Province & Iligan City
 const EVACUATION_SHELTERS = [
+  // --- ILIGAN CITY (Independent Urban Center) ---
   {
-    id: 'SHELTER-1',
+    id: 'SHELTER-ILIGAN-1',
     name: 'MSU-IIT Grand Gymnasium Relief Hub',
+    municipality: 'Iligan City',
     type: 'Primary Regional Evacuation Center',
     latitude: 8.24265,
     longitude: 124.24410,
@@ -18,8 +20,9 @@ const EVACUATION_SHELTERS = [
     contact: '+63 917 882 1401'
   },
   {
-    id: 'SHELTER-2',
+    id: 'SHELTER-ILIGAN-2',
     name: 'Iligan City National High School (ICNHS) Evacuation Center',
+    municipality: 'Iligan City',
     type: 'Secondary Regional Evacuation Hub',
     latitude: 8.22551,
     longitude: 124.23936,
@@ -32,8 +35,9 @@ const EVACUATION_SHELTERS = [
     contact: '+63 918 554 2209'
   },
   {
-    id: 'SHELTER-3',
+    id: 'SHELTER-ILIGAN-3',
     name: 'Iligan City Hall & CDRRMO Disaster Operations Center',
+    municipality: 'Iligan City',
     type: 'Central Government Disaster Headquarters',
     latitude: 8.22604,
     longitude: 124.25180,
@@ -46,8 +50,9 @@ const EVACUATION_SHELTERS = [
     contact: '+63 922 419 8092'
   },
   {
-    id: 'SHELTER-4',
+    id: 'SHELTER-ILIGAN-4',
     name: 'Gregorio T. Lluch Memorial Hospital (GTLMH Emergency Center)',
+    municipality: 'Iligan City',
     type: 'Primary Government Medical Trauma Hub',
     latitude: 8.22625,
     longitude: 124.25462,
@@ -60,8 +65,9 @@ const EVACUATION_SHELTERS = [
     contact: '+63 917 110 3388'
   },
   {
-    id: 'SHELTER-5',
+    id: 'SHELTER-ILIGAN-5',
     name: 'Barangay Tipanoy Evacuation Center & BDRRMC Complex',
+    municipality: 'Iligan City',
     type: 'Upland Community Flood Sanctuary',
     latitude: 8.19863,
     longitude: 124.24847,
@@ -74,8 +80,9 @@ const EVACUATION_SHELTERS = [
     contact: '+63 908 721 9931'
   },
   {
-    id: 'SHELTER-6',
-    name: 'Tubod Community Gymnasium & Evacuation Hub',
+    id: 'SHELTER-ILIGAN-6',
+    name: 'Tubod Community Gymnasium & Evacuation Hub (Iligan)',
+    municipality: 'Iligan City',
     type: 'Community Flood Evacuation Center',
     latitude: 8.21391,
     longitude: 124.24241,
@@ -88,8 +95,9 @@ const EVACUATION_SHELTERS = [
     contact: '+63 928 334 1180'
   },
   {
-    id: 'SHELTER-7',
+    id: 'SHELTER-ILIGAN-7',
     name: 'St. Michael\'s College (SMC) Disaster Relief Complex',
+    municipality: 'Iligan City',
     type: 'Institutional Relief & Volunteer Staging Center',
     latitude: 8.23943,
     longitude: 124.24984,
@@ -100,6 +108,173 @@ const EVACUATION_SHELTERS = [
     elevation: 'Elevated Campus Grounds',
     amenities: ['Youth & Family Shelter', 'Volunteer Mobilization Hub', 'Hot Meals Kitchen', 'Medical First Responders'],
     contact: '+63 919 442 8812'
+  },
+
+  // --- PROVINCE OF LANAO DEL NORTE (Municipal Disaster Hubs) ---
+  {
+    id: 'SHELTER-LDN-TUBOD',
+    name: 'Mindanao Civic Center (MCC) Provincial Disaster Operations Hub',
+    municipality: 'Tubod',
+    type: 'Provincial Command & Grand Evacuation Complex',
+    latitude: 8.03895,
+    longitude: 123.79199,
+    address: 'Mindanao Civic Center Complex, Sagadan, Tubod, Lanao del Norte',
+    total_capacity: 1500,
+    current_occupancy: 380,
+    status: 'Active (Available)',
+    elevation: 'Provincial Capitol Plateau (Flood-Safe)',
+    amenities: ['PDRRMO Provincial Command', 'Helipad Rescue Staging', 'Grand Gymnasium Cots', 'Heavy Water Tankers', 'Emergency Microgrid'],
+    contact: '+63 917 520 8900'
+  },
+  {
+    id: 'SHELTER-LDN-KAPATAGAN',
+    name: 'Kapatagan Municipal Gymnasium & Emergency Center',
+    municipality: 'Kapatagan',
+    type: 'Primary Municipal Evacuation Complex',
+    latitude: 7.89592,
+    longitude: 123.76714,
+    address: 'Poblacion, Kapatagan, Lanao del Norte',
+    total_capacity: 800,
+    current_occupancy: 215,
+    status: 'Active (Available)',
+    elevation: 'Reinforced Multi-Purpose High Ground',
+    amenities: ['Covered Gym Beds', 'Municipal First Aid Clinic', 'Mobile Kitchen', 'Clean Water Filtration'],
+    contact: '+63 920 631 4421'
+  },
+  {
+    id: 'SHELTER-LDN-LALA',
+    name: 'Lala Municipal Civic Center & Disaster Hub',
+    municipality: 'Lala',
+    type: 'Municipal Emergency Relief Center',
+    latitude: 7.97337,
+    longitude: 123.74765,
+    address: 'Maranding, Lala, Lanao del Norte',
+    total_capacity: 700,
+    current_occupancy: 190,
+    status: 'Active (Available)',
+    elevation: 'Commercial High Ground',
+    amenities: ['Central Relief Warehouse', 'Backup Generator', 'Sanitation Facilities', 'First Aid Station'],
+    contact: '+63 918 772 3110'
+  },
+  {
+    id: 'SHELTER-LDN-KAUSWAGAN',
+    name: 'Kauswagan Municipal Convention & Evacuation Center',
+    municipality: 'Kauswagan',
+    type: 'Coastal Disaster Relief Hub',
+    latitude: 8.18869,
+    longitude: 124.08644,
+    address: 'Poblacion, Kauswagan, Lanao del Norte',
+    total_capacity: 750,
+    current_occupancy: 125,
+    status: 'Active (Available)',
+    elevation: 'High-Elevation Convention Hall',
+    amenities: ['MDRRMO Incident Command', 'Sea-Rescue Staging', 'Community Kitchen', 'Satellite Comms'],
+    contact: '+63 922 841 9901'
+  },
+  {
+    id: 'SHELTER-LDN-LINAMON',
+    name: 'Linamon Municipal Multi-Purpose Evacuation Center',
+    municipality: 'Linamon',
+    type: 'Border Disaster Relief Hub',
+    latitude: 8.18396,
+    longitude: 124.15695,
+    address: 'Poblacion, Linamon, Lanao del Norte',
+    total_capacity: 450,
+    current_occupancy: 88,
+    status: 'Active (Available)',
+    elevation: 'Safe Inland Zone',
+    amenities: ['Emergency Cots', 'First Aid Bay', 'Clean Water Station', 'Emergency Power'],
+    contact: '+63 917 339 2100'
+  },
+  {
+    id: 'SHELTER-LDN-KOLAMBUGAN',
+    name: 'Kolambugan Civic Center & Panguil Port Disaster Hub',
+    municipality: 'Kolambugan',
+    type: 'Port Coastal Evacuation Center',
+    latitude: 8.11128,
+    longitude: 123.89659,
+    address: 'Poblacion, Kolambugan, Lanao del Norte',
+    total_capacity: 500,
+    current_occupancy: 105,
+    status: 'Active (Available)',
+    elevation: 'High Ground Civic Complex',
+    amenities: ['Ferry & Port Rescue Staging', 'Food Rations Depot', 'Medical Bay', 'Backup Generator'],
+    contact: '+63 919 655 4200'
+  },
+  {
+    id: 'SHELTER-LDN-BACOLOD',
+    name: 'Bacolod Municipal Evacuation Gymnasium',
+    municipality: 'Bacolod',
+    type: 'Municipal Evacuation Center',
+    latitude: 8.19008,
+    longitude: 124.02399,
+    address: 'Poblacion, Bacolod, Lanao del Norte',
+    total_capacity: 400,
+    current_occupancy: 70,
+    status: 'Active (Available)',
+    elevation: 'Elevated Civic Grounds',
+    amenities: ['Covered Gym Beds', 'Water Filtration', 'First Aid Station'],
+    contact: '+63 921 448 9122'
+  },
+  {
+    id: 'SHELTER-LDN-BALOI',
+    name: 'Balo-i Municipal Disaster Management Center',
+    municipality: 'Baloi',
+    type: 'Hydropower Basin Evacuation Center',
+    latitude: 8.11557,
+    longitude: 124.22202,
+    address: 'Poblacion, Balo-i, Lanao del Norte',
+    total_capacity: 450,
+    current_occupancy: 95,
+    status: 'Active (Available)',
+    elevation: 'High Ground River-Safe',
+    amenities: ['River Early Warning Station', 'Emergency Generator', 'Relief Distribution Bay'],
+    contact: '+63 918 312 7709'
+  },
+  {
+    id: 'SHELTER-LDN-MAIGO',
+    name: 'Maigo Municipal Evacuation Gym',
+    municipality: 'Maigo',
+    type: 'Community Disaster Hub',
+    latitude: 8.15862,
+    longitude: 123.96108,
+    address: 'Poblacion, Maigo, Lanao del Norte',
+    total_capacity: 350,
+    current_occupancy: 62,
+    status: 'Active (Available)',
+    elevation: 'Safe Inshore Elevation',
+    amenities: ['Clean Water Reserves', 'Medical First Aid', 'Community Kitchen'],
+    contact: '+63 920 918 3341'
+  },
+  {
+    id: 'SHELTER-LDN-BAROY',
+    name: 'Baroy Municipal Civic & Evacuation Center',
+    municipality: 'Baroy',
+    type: 'Municipal Disaster Center',
+    latitude: 8.02449,
+    longitude: 123.77945,
+    address: 'Poblacion, Baroy, Lanao del Norte',
+    total_capacity: 400,
+    current_occupancy: 80,
+    status: 'Active (Available)',
+    elevation: 'Central Safe Grounds',
+    amenities: ['Emergency Shelter Beds', 'Water Filtration', 'Power Generator'],
+    contact: '+63 917 882 5501'
+  },
+  {
+    id: 'SHELTER-LDN-SND',
+    name: 'Sultan Naga Dimaporo (SND) Multi-Purpose Disaster Center',
+    municipality: 'Sultan Naga Dimaporo',
+    type: 'Southern Provincial Relief Hub',
+    latitude: 7.79492,
+    longitude: 123.71875,
+    address: 'Poblacion, Sultan Naga Dimaporo, Lanao del Norte',
+    total_capacity: 500,
+    current_occupancy: 115,
+    status: 'Active (Available)',
+    elevation: 'Elevated Coastal Ground',
+    amenities: ['Emergency Shelter Cots', 'Solar Power Battery Bank', 'Water Storage Reservoirs'],
+    contact: '+63 919 720 1888'
   }
 ];
 

@@ -314,6 +314,7 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
             <thead>
               <tr>
                 <th>Shelter ID</th>
+                <th>Municipality</th>
                 <th>Shelter & Address</th>
                 <th>Type</th>
                 <th>Elevation / Hazard Risk</th>
@@ -326,7 +327,7 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
             <tbody>
               {shelters.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-6 text-muted">
+                  <td colSpan={9} className="text-center py-6 text-muted">
                     Loading designated evacuation shelters...
                   </td>
                 </tr>
@@ -336,6 +337,11 @@ export default function AdminDashboard({ incidents, onUpdateStatus, onDeleteInci
                   return (
                     <tr key={shelter.id}>
                       <td className="font-mono text-cyan" style={{ fontWeight: 600 }}>{shelter.id}</td>
+                      <td>
+                        <span className="target-squad-badge" style={{ background: 'rgba(6, 182, 212, 0.15)', color: '#38bdf8', borderColor: 'rgba(6, 182, 212, 0.3)', whiteSpace: 'nowrap' }}>
+                          📍 {shelter.municipality || 'Lanao del Norte'}
+                        </span>
+                      </td>
                       <td>
                         <div className="incident-table-cell">
                           <strong>{shelter.name}</strong>

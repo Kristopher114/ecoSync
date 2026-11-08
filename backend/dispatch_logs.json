@@ -1,5 +1,158 @@
 [
   {
+    "id": "ALERT-7536",
+    "incident_id": 14,
+    "incident_title": "Building Collapse",
+    "category": "General",
+    "urgency": "Critical",
+    "location": "3 Three Angels JunkShop, Santol Street, Purok 11",
+    "recipients_count": 24,
+    "recipient_group": "Community Relief Volunteer Corps",
+    "actionable_needs": [
+      "Community Support",
+      "On-Site Verification"
+    ],
+    "channel": "Email Broadcast + Emergency Wire",
+    "status": "Dispatched & Confirmed",
+    "dispatched_at": "2026-11-08T08:21:51.799Z"
+  },
+  {
+    "id": "ALERT-6140",
+    "incident_id": 13,
+    "incident_title": "Clean Drinking Water Shortage",
+    "category": "Food & Water",
+    "urgency": "Medium",
+    "location": "Barangay Hall Evacuation Center",
+    "recipients_count": 12,
+    "recipient_group": "Community Relief Volunteer Corps",
+    "actionable_needs": [
+      "Community Support",
+      "On-Site Verification"
+    ],
+    "channel": "Email Broadcast + Emergency Wire",
+    "status": "Dispatched & Confirmed",
+    "dispatched_at": "2026-11-08T07:57:49.364Z"
+  },
+  {
+    "id": "ALERT-6247",
+    "incident_id": 12,
+    "incident_title": "Clean Drinking Water Shortage",
+    "category": "Food & Water",
+    "urgency": "Medium",
+    "location": "Barangay Hall Evacuation Center",
+    "recipients_count": 12,
+    "recipient_group": "Community Relief Volunteer Corps",
+    "actionable_needs": [
+      "Community Support",
+      "On-Site Verification"
+    ],
+    "channel": "Email Broadcast + Emergency Wire",
+    "status": "Dispatched & Confirmed",
+    "dispatched_at": "2026-11-08T07:57:49.314Z"
+  },
+  {
+    "id": "ALERT-5622",
+    "incident_id": 11,
+    "incident_title": "Electrical Spark / Fire Hazard",
+    "category": "Fire",
+    "urgency": "Critical",
+    "location": "Corner Provincial Highway",
+    "recipients_count": 24,
+    "recipient_group": "Community Relief Volunteer Corps",
+    "actionable_needs": [
+      "Community Support",
+      "On-Site Verification"
+    ],
+    "channel": "Email Broadcast + Emergency Wire",
+    "status": "Dispatched & Confirmed",
+    "dispatched_at": "2026-11-08T07:57:49.191Z"
+  },
+  {
+    "id": "ALERT-5540",
+    "incident_id": 10,
+    "incident_title": "Electrical Spark / Fire Hazard",
+    "category": "Fire",
+    "urgency": "Critical",
+    "location": "Corner Provincial Highway",
+    "recipients_count": 24,
+    "recipient_group": "Community Relief Volunteer Corps",
+    "actionable_needs": [
+      "Community Support",
+      "On-Site Verification"
+    ],
+    "channel": "Email Broadcast + Emergency Wire",
+    "status": "Dispatched & Confirmed",
+    "dispatched_at": "2026-11-08T07:57:49.158Z"
+  },
+  {
+    "id": "ALERT-1411",
+    "incident_id": 9,
+    "incident_title": "Emergency Medical Evacuation",
+    "category": "Medical",
+    "urgency": "High",
+    "location": "District Community Gymnasium",
+    "recipients_count": 12,
+    "recipient_group": "Medical & First Aid Volunteer Team",
+    "actionable_needs": [
+      "Community Support",
+      "On-Site Verification"
+    ],
+    "channel": "Email Broadcast + Emergency Wire",
+    "status": "Dispatched & Confirmed",
+    "dispatched_at": "2026-11-08T07:57:49.000Z"
+  },
+  {
+    "id": "ALERT-3233",
+    "incident_id": 8,
+    "incident_title": "Emergency Medical Evacuation",
+    "category": "Medical",
+    "urgency": "High",
+    "location": "District Community Gymnasium",
+    "recipients_count": 12,
+    "recipient_group": "Medical & First Aid Volunteer Team",
+    "actionable_needs": [
+      "Community Support",
+      "On-Site Verification"
+    ],
+    "channel": "Email Broadcast + Emergency Wire",
+    "status": "Dispatched & Confirmed",
+    "dispatched_at": "2026-11-08T07:57:48.852Z"
+  },
+  {
+    "id": "ALERT-7295",
+    "incident_id": 7,
+    "incident_title": "Flash Flood Rescue Needed",
+    "category": "Flood",
+    "urgency": "Critical",
+    "location": "Poblacion Riverside Sector",
+    "recipients_count": 24,
+    "recipient_group": "Search & Rescue Rapid Response Unit",
+    "actionable_needs": [
+      "Community Support",
+      "On-Site Verification"
+    ],
+    "channel": "Email Broadcast + Emergency Wire",
+    "status": "Dispatched & Confirmed",
+    "dispatched_at": "2026-11-08T07:57:48.678Z"
+  },
+  {
+    "id": "ALERT-4289",
+    "incident_id": 6,
+    "incident_title": "Flash Flood Rescue Needed",
+    "category": "Flood",
+    "urgency": "Critical",
+    "location": "Poblacion Riverside Sector",
+    "recipients_count": 24,
+    "recipient_group": "Search & Rescue Rapid Response Unit",
+    "actionable_needs": [
+      "Community Support",
+      "On-Site Verification"
+    ],
+    "channel": "Email Broadcast + Emergency Wire",
+    "status": "Dispatched & Confirmed",
+    "dispatched_at": "2026-11-08T07:57:48.665Z"
+  },
+  {
     "id": "ALERT-3160",
     "incident_id": 999,
     "incident_title": "Test Flash Flood",
