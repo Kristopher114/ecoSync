@@ -111,16 +111,27 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
       }
 
       if (isLoginMode) {
-        const userRole = data.user?.role || 'user';
+        let userRole = data.user?.role || 'user';
         const storedMap = getStoredMunicipalityMap();
         const builtinMuni = BUILTIN_ADMIN_MUNICIPALITIES[cleanUser];
 
+        if (cleanUser === 'admin_kapatagan') {
+          userRole = 'admin';
+        }
+        if (cleanUser === 'admin_iligan') {
+          userRole = 'admin';
+        }
+
         const resolvedMuniId =
+          (cleanUser === 'admin_kapatagan' ? 'KAPATAGAN' : null) ||
+          (cleanUser === 'admin_iligan' ? 'ILIGAN' : null) ||
           data.user?.municipality ||
           storedMap[cleanUser]?.municipality ||
           (builtinMuni ? builtinMuni.id : null);
 
         const resolvedMuniName =
+          (cleanUser === 'admin_kapatagan' ? 'Kapatagan' : null) ||
+          (cleanUser === 'admin_iligan' ? 'Iligan City' : null) ||
           data.user?.municipality_name ||
           storedMap[cleanUser]?.municipality_name ||
           (builtinMuni ? builtinMuni.name : null) ||

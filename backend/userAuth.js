@@ -79,12 +79,23 @@ function getLocalUsers() {
     const validUsers = [];
 
     for (const u of parsed) {
-      if (u.role === 'admin') {
-        if (u.username === 'admin_iligan' && !u.municipality) {
+      if (u.username === 'admin_kapatagan') {
+        if (u.role !== 'admin' || u.municipality !== 'KAPATAGAN') {
+          u.role = 'admin';
+          u.municipality = 'KAPATAGAN';
+          u.municipality_name = 'Kapatagan';
+          modified = true;
+        }
+      }
+      if (u.username === 'admin_iligan') {
+        if (u.role !== 'admin' || u.municipality !== 'ILIGAN') {
+          u.role = 'admin';
           u.municipality = 'ILIGAN';
           u.municipality_name = 'Iligan City';
           modified = true;
         }
+      }
+      if (u.role === 'admin') {
         if (!u.municipality || u.municipality === 'ALL') {
           // Remove any admin account that has no specific municipality jurisdiction
           modified = true;
@@ -277,6 +288,17 @@ async function loginUser(username, password) {
   const matched = users.find(u => u.username.toLowerCase() === cleanUser);
   if (!matched) {
     return { error: 'Username not found. Please register an account first.' };
+  }
+
+  if (cleanUser === 'admin_kapatagan') {
+    matched.role = 'admin';
+    matched.municipality = 'KAPATAGAN';
+    matched.municipality_name = 'Kapatagan';
+  }
+  if (cleanUser === 'admin_iligan') {
+    matched.role = 'admin';
+    matched.municipality = 'ILIGAN';
+    matched.municipality_name = 'Iligan City';
   }
 
   if (matched.role === 'admin' && (!matched.municipality || matched.municipality === 'ALL')) {

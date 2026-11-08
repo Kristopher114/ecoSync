@@ -27,23 +27,25 @@ export default function App() {
       if (!saved) return null;
       const parsed = JSON.parse(saved);
 
-      // Migrate built-in demo admins or remove any admin account that has no municipality assigned
-      if (parsed && parsed.role === 'admin') {
+      // Ensure admin_kapatagan and admin_iligan are strictly Admin Coordinators, never volunteers
+      if (parsed) {
         const uname = (parsed.username || '').toLowerCase();
-        if (uname === 'admin_iligan' && !parsed.municipality) {
-          parsed.municipality = 'ILIGAN';
-          parsed.municipality_name = 'Iligan City';
-          localStorage.setItem('ecosync_user', JSON.stringify(parsed));
-          return parsed;
-        }
-        if (uname === 'admin_kapatagan' && !parsed.municipality) {
+        if (uname === 'admin_kapatagan') {
+          parsed.role = 'admin';
           parsed.municipality = 'KAPATAGAN';
           parsed.municipality_name = 'Kapatagan';
           localStorage.setItem('ecosync_user', JSON.stringify(parsed));
           return parsed;
         }
-        if (!parsed.municipality || parsed.municipality === 'ALL') {
-          // Remove any registered admin account that has no municipality jurisdiction
+        if (uname === 'admin_iligan') {
+          parsed.role = 'admin';
+          parsed.municipality = 'ILIGAN';
+          parsed.municipality_name = 'Iligan City';
+          localStorage.setItem('ecosync_user', JSON.stringify(parsed));
+          return parsed;
+        }
+        if (parsed.role === 'admin' && (!parsed.municipality || parsed.municipality === 'ALL')) {
+          // Remove any admin account that has no specific municipality jurisdiction
           localStorage.removeItem('ecosync_user');
           return null;
         }
