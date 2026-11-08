@@ -301,6 +301,18 @@ export default function App() {
                   </span>
                 </div>
               </div>
+
+              {/* Map Top Status & Navigation Guidance Bar (Positioned above map to prevent clutter) */}
+              <div className="map-top-info-bar glass-panel">
+                <div className="map-top-info-left">
+                  <span className="map-info-status">
+                    📅 {dateFilter === 'today' ? "Showing Today's Landmarks (Daily Reset Active)" : dateFilter === '24h' ? "Showing Landmarks from Past 24 Hours" : dateFilter === 'custom' ? `Showing Landmarks for ${selectedCustomDate}` : "Showing All Historical Landmarks"}
+                  </span>
+                </div>
+                <div className="map-top-info-right">
+                  <span className="map-info-hint">💡 Click anywhere on map or any incident to view nearest evacuation center & safe road route</span>
+                </div>
+              </div>
             </div>
 
             {/* Interactive Leaflet Map with Active Date Filter */}

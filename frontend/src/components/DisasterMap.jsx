@@ -726,13 +726,6 @@ export default function DisasterMap({
 
       {/* Map Container */}
       <div id="disaster-leaflet-map" ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
-
-      {/* Map Helper Badge */}
-      <div className="map-hint-badge">
-        <span>
-          📅 {dateFilter === 'today' ? "Showing Today's Landmarks (Daily Reset Active)" : dateFilter === '24h' ? "Showing Landmarks from Past 24 Hours" : dateFilter === 'custom' ? "Showing Landmarks for Selected Date" : "Showing All Historical Landmarks"} • Click anywhere on map to view nearest evacuation center & road route
-        </span>
-      </div>
     </div>
   );
 }
