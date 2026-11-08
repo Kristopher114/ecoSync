@@ -6,7 +6,12 @@ import {
 } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import { EVACUATION_SHELTERS, calculateDirectOsrmRoute } from '../sheltersData';
-import { getMunicipalityById, doesShelterBelongToMunicipality } from '../municipalities';
+import {
+  getMunicipalityById,
+  doesShelterBelongToMunicipality,
+  getRegisteredPlacesForMunicipality,
+  searchMunicipalityPlaces
+} from '../municipalities';
 
 const URGENCY_COLORS = {
   Critical: '#ef4444',
@@ -37,11 +42,22 @@ export default function DisasterMap({
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchError, setSearchError] = useState('');
   const [activePinAddress, setActivePinAddress] = useState(null);
   const [activePinCoords, setActivePinCoords] = useState(null);
 
   const effectiveMunicipality = lockedMunicipality || selectedMunicipality || 'ALL';
   const lockedMuniObj = lockedMunicipality ? getMunicipalityById(lockedMunicipality) : null;
+  const activeMuniObj = getMunicipalityById(effectiveMunicipality);
+  const matchingPlaces = searchMunicipalityPlaces(searchQuery, effectiveMunicipality);
+
+  // Reset search input & errors when active municipality changes
+  useEffect(() => {
+    setSearchQuery('');
+    setSearchError('');
+    setShowSuggestions(false);
+  }, [effectiveMunicipality]);
 
   // Clear manually dropped landmark pin
   const handleClearPin = () => {
@@ -680,50 +696,176 @@ export default function DisasterMap({
     }
   }, [incidents, selectedCategory, selectedIncident]);
 
-  // Google Maps Search (Restricted to Admin's Municipality when locked)
-  const handleSearch = async (e) => {
+  // Drop a landmark pin & open action popup for a selected registered barangay/landmark
+  const handleSelectPlace = (place) => {
+    const map = mapInstanceRef.current;
+    if (!map || !place) return;
+
+    const lat = Number(place.lat);
+    const lng = Number(place.lng);
+    const resolvedAddress = `${place.name}, ${place.municipalityName}, Lanao del Norte`;
+
+    setSearchQuery(place.name);
+    setShowSuggestions(false);
+    setSearchError('');
+    setActivePinCoords({ lat, lng });
+    setActivePinAddress(resolvedAddress);
+
+    if (clickedPinRef.current) {
+      map.removeLayer(clickedPinRef.current);
+    }
+
+    const droppedIcon = L.divIcon({
+      className: 'google-style-pin',
+      html: `
+        <div style="position: relative; display: flex; align-items: center; justify-content: center;">
+          <div style="
+            width: 32px;
+            height: 32px;
+            background: #ef4444;
+            border: 3px solid #ffffff;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.6);
+          "></div>
+          <div style="
+            position: absolute;
+            top: 5px;
+            width: 10px;
+            height: 10px;
+            background: #ffffff;
+            border-radius: 50%;
+          "></div>
+        </div>
+      `,
+      iconSize: [32, 42],
+      iconAnchor: [16, 38],
+      popupAnchor: [0, -36]
+    });
+
+    const pinMarker = L.marker([lat, lng], { icon: droppedIcon }).addTo(map);
+    clickedPinRef.current = pinMarker;
+
+    const popupContent = document.createElement('div');
+    popupContent.style.minWidth = '230px';
+    popupContent.style.padding = '4px';
+    popupContent.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px;">
+        <span style="background: rgba(6, 182, 212, 0.2); color: #38bdf8; border: 1px solid rgba(6,182,212,0.4); padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: bold;">
+          ${place.type?.toUpperCase() || 'REGISTERED BARANGAY'}
+        </span>
+        <span style="font-size: 10px; color: #94a3b8; font-weight: 600;">📍 ${place.municipalityName}</span>
+      </div>
+      <div style="font-weight: 700; color: #ffffff; font-size: 14px; margin-bottom: 2px;">
+        ${place.name}
+      </div>
+      <div style="font-size: 11px; color: #94a3b8; margin-bottom: 10px;">
+        ${resolvedAddress} (${lat.toFixed(4)}, ${lng.toFixed(4)})
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <button id="btn-evacuate-search-pin" style="
+          width: 100%;
+          background: linear-gradient(135deg, #06b6d4, #0284c7);
+          color: white;
+          border: none;
+          padding: 8px 12px;
+          border-radius: 8px;
+          font-weight: bold;
+          font-size: 12px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+        ">
+          🧭 Evacuate to Nearest Shelter (OSRM)
+        </button>
+        <button id="btn-report-search-pin" style="
+          width: 100%;
+          background: linear-gradient(135deg, #ef4444, #dc2626);
+          color: white;
+          border: none;
+          padding: 8px 12px;
+          border-radius: 8px;
+          font-weight: bold;
+          font-size: 12px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+        ">
+          🚨 Report Emergency Here
+        </button>
+        <button id="btn-clear-search-pin" style="
+          width: 100%;
+          background: rgba(255, 255, 255, 0.08);
+          color: #cbd5e1;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          padding: 6px 12px;
+          border-radius: 8px;
+          font-size: 11px;
+          cursor: pointer;
+        ">
+          ❌ Clear Landmark Pin
+        </button>
+      </div>
+    `;
+
+    popupContent.querySelector('#btn-report-search-pin').onclick = () => {
+      if (onOpenReportWithLocation) {
+        onOpenReportWithLocation(lat, lng, resolvedAddress);
+      }
+    };
+
+    popupContent.querySelector('#btn-clear-search-pin').onclick = () => {
+      handleClearPin();
+    };
+
+    popupContent.querySelector('#btn-evacuate-search-pin').onclick = () => {
+      handleEvacuationRoute(lat, lng, null, null, 'driving');
+    };
+
+    pinMarker.bindPopup(popupContent);
+
+    map.flyTo([lat, lng], 16, { duration: 1.25 });
+    setTimeout(() => {
+      if (clickedPinRef.current === pinMarker) {
+        pinMarker.openPopup();
+      }
+    }, 650);
+
+    if (onMapClick) {
+      onMapClick(lat, lng, resolvedAddress);
+    }
+  };
+
+  // Municipality-Scoped Search Engine (Only places registered in the active municipality can be searched)
+  const handleSearch = (e) => {
     e.preventDefault();
     if (!searchQuery.trim() || !mapInstanceRef.current) return;
 
     setIsSearching(true);
-    try {
-      const scopedQuery = lockedMuniObj
-        ? `${searchQuery}, ${lockedMuniObj.shortName}, Lanao del Norte`
-        : searchQuery;
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(scopedQuery)}`);
-      const results = await res.json();
-      if (results && results.length > 0) {
-        const first = results[0];
-        const lat = parseFloat(first.lat);
-        const lon = parseFloat(first.lon);
+    setSearchError('');
 
-        if (lockedMuniObj) {
-          const padLat = (lockedMuniObj.boundsPadLat || lockedMuniObj.boundsPad || 0.13) + 0.05;
-          const padLng = (lockedMuniObj.boundsPadLng || lockedMuniObj.boundsPad || 0.16) + 0.05;
-          const bounds = L.latLngBounds(
-            [lockedMuniObj.lat - padLat, lockedMuniObj.lng - padLng],
-            [lockedMuniObj.lat + padLat, lockedMuniObj.lng + padLng]
-          );
-          if (!bounds.contains([lat, lon])) {
-            alert(`🔒 Jurisdiction Locked: Your Admin map is restricted exclusively to ${lockedMuniObj.shortName}.`);
-            mapInstanceRef.current.flyTo([lockedMuniObj.lat, lockedMuniObj.lng], lockedMuniObj.zoom || 13);
-            return;
-          }
-        }
-
-        mapInstanceRef.current.flyTo([lat, lon], 15, { duration: 1.5 });
-      } else {
-        alert(
-          lockedMuniObj
-            ? `Landmark not found inside ${lockedMuniObj.shortName}.`
-            : 'Location not found. Try another city or landmark.'
-        );
-      }
-    } catch (err) {
-      console.warn('Search error:', err);
-    } finally {
+    const results = searchMunicipalityPlaces(searchQuery, effectiveMunicipality);
+    if (results.length > 0) {
+      handleSelectPlace(results[0]);
       setIsSearching(false);
+      return;
     }
+
+    // No match in the currently selected municipality
+    const registeredList = getRegisteredPlacesForMunicipality(effectiveMunicipality);
+    const samplePlaces = registeredList.slice(0, 4).map(p => p.name).join(', ');
+    const scopeName = effectiveMunicipality === 'ALL'
+      ? 'Lanao del Norte & Iligan City'
+      : activeMuniObj.shortName;
+
+    setSearchError(
+      `"${searchQuery}" is not a registered barangay or landmark in ${scopeName}. Try: ${samplePlaces}`
+    );
+    setIsSearching(false);
   };
 
   // GPS "Locate Me" Button
@@ -750,23 +892,102 @@ export default function DisasterMap({
 
   return (
     <div className="map-wrapper glass-panel">
-      {/* Google Maps Style Floating Search Bar */}
-      <form onSubmit={handleSearch} className="gmaps-search-bar glass-panel">
-        <Search size={16} className="text-dim" />
-        <input
-          type="text"
-          placeholder={
-            lockedMuniObj
-              ? `Search barangay or landmark in ${lockedMuniObj.shortName}...`
-              : 'Search city, barangay, or landmark...'
-          }
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        <button type="submit" disabled={isSearching} className="gmaps-search-btn">
-          {isSearching ? <Loader2 size={14} className="spin" /> : 'Search'}
-        </button>
-      </form>
+      {/* Municipality-Scoped Floating Search Bar & Registered Barangay Autocomplete */}
+      <div className="gmaps-search-container">
+        <form onSubmit={handleSearch} className="gmaps-search-bar glass-panel">
+          <Search size={16} className="text-cyan" style={{ flexShrink: 0 }} />
+          <input
+            type="text"
+            placeholder={
+              effectiveMunicipality !== 'ALL'
+                ? `Search in ${activeMuniObj.shortName} (e.g. Poblacion, ${getRegisteredPlacesForMunicipality(effectiveMunicipality)[1]?.name || 'Barangay'})...`
+                : 'Search registered barangay (e.g. Poblacion, Butadon, Tibanga)...'
+            }
+            value={searchQuery}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setSearchError('');
+              setShowSuggestions(true);
+            }}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('');
+                setSearchError('');
+                setShowSuggestions(true);
+              }}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#94a3b8',
+                cursor: 'pointer',
+                padding: '2px',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+              title="Clear search"
+            >
+              <X size={14} />
+            </button>
+          )}
+          <button type="submit" disabled={isSearching} className="gmaps-search-btn">
+            {isSearching ? <Loader2 size={14} className="spin" /> : 'Search'}
+          </button>
+        </form>
+
+        {/* Registered Barangays & Landmarks Autocomplete Dropdown */}
+        {showSuggestions && matchingPlaces.length > 0 && (
+          <div className="search-suggestions-dropdown glass-panel">
+            <div className="search-suggestions-header">
+              <span>
+                📍 Registered Places in {effectiveMunicipality === 'ALL' ? 'All Municipalities' : activeMuniObj.shortName}
+              </span>
+              <span className="search-suggestions-count">{matchingPlaces.length} available</span>
+            </div>
+            <div className="search-suggestions-list">
+              {matchingPlaces.slice(0, 8).map((place, idx) => (
+                <button
+                  key={`${place.municipalityId}-${place.name}-${idx}`}
+                  type="button"
+                  className="search-suggestion-item"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSelectPlace(place);
+                  }}
+                >
+                  <div className="suggestion-main">
+                    <MapPin size={13} className="text-cyan" style={{ flexShrink: 0 }} />
+                    <span className="suggestion-name">{place.name}</span>
+                  </div>
+                  <div className="suggestion-meta">
+                    <span className="suggestion-muni">{place.municipalityName}</span>
+                    <span className="suggestion-type">{place.type}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Scoped Search Validation Message */}
+        {searchError && (
+          <div className="search-error-toast glass-panel">
+            <AlertCircle size={14} className="text-red" style={{ flexShrink: 0 }} />
+            <span>{searchError}</span>
+            <button
+              type="button"
+              onClick={() => setSearchError('')}
+              style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', marginLeft: 'auto' }}
+            >
+              <X size={13} />
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Floating Action Controls on Top-Right */}
       <div className="map-top-actions">

@@ -2565,3 +2565,471 @@
     position: static;
   }
 }
+
+/* ==========================================================================
+   MUNICIPALITY-SCOPED SEARCH ENGINE & REGISTERED BARANGAY AUTOCOMPLETE
+   ========================================================================== */
+.gmaps-search-container {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 1050;
+  width: calc(58% - 20px);
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gmaps-search-container .gmaps-search-bar {
+  position: relative;
+  top: 0;
+  left: 0;
+  width: 100%;
+  max-width: none;
+}
+
+.search-suggestions-dropdown {
+  background: rgba(15, 23, 42, 0.96);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
+  overflow: hidden;
+  max-height: 260px;
+  display: flex;
+  flex-direction: column;
+}
+
+.search-suggestions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #38bdf8;
+  background: rgba(6, 182, 212, 0.12);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.search-suggestions-count {
+  font-size: 0.66rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.search-suggestions-list {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  max-height: 220px;
+}
+
+.search-suggestion-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: #f1f5f9;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.search-suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.search-suggestion-item:hover {
+  background: rgba(6, 182, 212, 0.16);
+}
+
+.suggestion-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.suggestion-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.suggestion-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.suggestion-muni {
+  font-size: 0.68rem;
+  color: #94a3b8;
+}
+
+.suggestion-type {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.16);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.search-error-toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  color: #fca5a5;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+/* ==========================================================================
+   FULL MOBILE & TABLET RESPONSIVENESS (PHONES & SMALL SCREENS)
+   ========================================================================== */
+@media (max-width: 1024px) {
+  .main-hub-content {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .map-section-container {
+    position: relative;
+    top: 0;
+    height: 480px;
+    min-height: 420px;
+  }
+
+  .map-wrapper {
+    min-height: 400px;
+  }
+
+  .admin-sidebar-menu {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-layout {
+    padding: 10px 12px;
+    gap: 12px;
+  }
+
+  /* Responsive Navbar */
+  .navbar-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .navbar-left {
+    justify-content: space-between;
+    width: 100%;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .logo-title {
+    font-size: 1.25rem;
+  }
+
+  .navbar-center {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .nav-link {
+    flex: 1;
+    justify-content: center;
+    padding: 8px 10px;
+    font-size: 0.82rem;
+  }
+
+  .navbar-right {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .navbar-right .btn-danger-glow {
+    flex: 1;
+    justify-content: center;
+  }
+
+  /* Map & Floating Controls on Mobile */
+  .map-section-container {
+    height: 430px;
+    min-height: 380px;
+  }
+
+  .map-wrapper {
+    min-height: 360px;
+  }
+
+  .map-top-info-bar {
+    padding: 6px 10px;
+    font-size: 0.72rem;
+    gap: 6px;
+  }
+
+  .map-info-hint {
+    display: none;
+  }
+
+  .gmaps-search-container {
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    width: auto;
+    max-width: none;
+  }
+
+  .map-top-actions {
+    top: 56px;
+    left: 10px;
+    right: 10px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .gmaps-shelters-btn,
+  .gmaps-clear-pin-btn {
+    padding: 6px 10px;
+    font-size: 0.72rem;
+  }
+
+  .evacuation-nav-hud {
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    width: auto;
+    max-width: none;
+    padding: 12px;
+  }
+
+  .hud-metrics-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Filter Pills & Jurisdiction Dropdown on Mobile */
+  .filter-bar {
+    padding: 10px 12px;
+    gap: 6px;
+  }
+
+  .municipality-select-wrap {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .municipality-dropdown-select {
+    flex: 1;
+    width: 100%;
+  }
+
+  .filter-divider {
+    display: none;
+  }
+
+  .date-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .date-filter-tabs {
+    width: 100%;
+    display: flex;
+  }
+
+  .date-tab-btn {
+    flex: 1;
+    justify-content: center;
+    font-size: 0.75rem;
+    padding: 6px 8px;
+  }
+
+  .daily-Active-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .daily-notice-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  /* Weather & News Sidebar on Mobile */
+  .weather-news-sidebar {
+    padding: 14px;
+  }
+
+  .weather-main-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .weather-metrics {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+
+  /* Admin Command Hub on Mobile */
+  .admin-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .admin-header-right {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .admin-sidebar-menu {
+    grid-template-columns: 1fr;
+  }
+
+  .dispatch-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .dispatch-controls {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .dispatch-search {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  /* Modals on Mobile */
+  .modal-backdrop {
+    padding: 10px;
+    align-items: flex-end;
+  }
+
+  .modal-card,
+  .modal-card-compact {
+    max-height: 92vh;
+    overflow-y: auto;
+    padding: 14px 16px;
+    border-radius: 14px;
+  }
+
+  .form-grid-3 {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .form-bottom-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .modal-actions-compact {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .modal-actions-compact button {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-layout {
+    padding: 8px;
+    gap: 10px;
+  }
+
+  .logo-subtitle {
+    font-size: 0.64rem;
+  }
+
+  .live-status-pill {
+    font-size: 0.68rem;
+    padding: 3px 8px;
+  }
+
+  .map-section-container {
+    height: 390px;
+    min-height: 350px;
+  }
+
+  .map-wrapper {
+    min-height: 330px;
+  }
+
+  .gmaps-search-bar {
+    padding: 5px 10px;
+  }
+
+  .gmaps-search-bar input {
+    font-size: 0.78rem;
+  }
+
+  .gmaps-search-btn {
+    padding: 4px 10px;
+    font-size: 0.74rem;
+  }
+
+  .filter-chip {
+    padding: 5px 10px;
+    font-size: 0.74rem;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .weather-metrics {
+    grid-template-columns: 1fr;
+  }
+}
