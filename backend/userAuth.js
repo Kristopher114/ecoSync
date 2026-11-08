@@ -25,6 +25,13 @@ function getLocalUsers() {
         password_hash: hashPassword('volunteer123'),
         role: 'user',
         created_at: new Date().toISOString()
+      },
+      {
+        id: 3,
+        username: 'admin_iligan',
+        password_hash: hashPassword('admin123'),
+        role: 'admin',
+        created_at: new Date().toISOString()
       }
     ];
     fs.writeFileSync(LOCAL_USERS_FILE, JSON.stringify(defaultUsers, null, 2));
