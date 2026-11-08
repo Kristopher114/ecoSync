@@ -38,7 +38,7 @@ export const LANAO_DEL_NORTE_MUNICIPALITIES = [
   },
   {
     id: 'LALA',
-    name: 'Lala',
+    name: 'Lala (Maranding)',
     shortName: 'Lala',
     lat: 7.9734,
     lng: 123.7477,
