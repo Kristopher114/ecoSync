@@ -40,6 +40,8 @@ CREATE TABLE IF NOT EXISTS public.app_users (
     username TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'user',
+    municipality TEXT,
+    municipality_name TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
