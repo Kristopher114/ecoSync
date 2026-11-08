@@ -4,6 +4,16 @@ This document contains **all the essential code modules** required to build, run
 
 ---
 
+## 🔐 Registered System Accounts (Login Credentials)
+
+| Username | Password | Role | Access Level |
+| :--- | :--- | :--- | :--- |
+| **`admin`** | `admin123` | `admin` (Admin Coordinator) | Full Access: Live Map + **Admin Command Hub** (Triage, Status Updates, Delete, Broadcasts, Shelters Table) |
+| **`admin_iligan`** | `admin123` | `admin` (Admin Coordinator) | Full Access: Live Map + **Admin Command Hub** |
+| **`volunteer`** | `volunteer123` | `user` (Regular Citizen / Volunteer) | Citizen Access: Live Map, Report Emergencies, AI Triage, OSRM Evacuation Routing *(Admin Hub Locked)* |
+
+---
+
 ## 🛠️ 1. Quick-Start Commands to Run the Website
 
 ### Terminal 1 — Start the Node.js Express Backend (`Port 5000`)
@@ -447,3 +457,4 @@ const displayedIncidents = selectedMunicipality === 'ALL'
   width: 100%;
 }
 ```
+
