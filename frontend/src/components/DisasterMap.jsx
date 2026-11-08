@@ -5,6 +5,7 @@ import {
   Shield, Compass, X, Car, Footprints, CheckCircle2, MapPin
 } from 'lucide-react';
 import { API_BASE_URL } from '../config';
+import { EVACUATION_SHELTERS, calculateDirectOsrmRoute } from '../sheltersData';
 
 const URGENCY_COLORS = {
   Critical: '#ef4444',
@@ -47,23 +48,27 @@ export default function DisasterMap({
   };
 
   // Evacuation Shelters & OSRM Routing States (API #5)
+  // Pre-seeded with all 18 verified Lanao del Norte shelters for instant load on Vercel / Cloud
   const [showShelters, setShowShelters] = useState(true);
-  const [shelters, setShelters] = useState([]);
+  const [shelters, setShelters] = useState(EVACUATION_SHELTERS);
   const [activeRoute, setActiveRoute] = useState(null);
   const [isRouting, setIsRouting] = useState(false);
   const [routingError, setRoutingError] = useState(null);
 
-  // Fetch Evacuation Shelters Directory from Backend
+  // Fetch Evacuation Shelters Directory from Backend (with instant built-in fallback)
   useEffect(() => {
     async function loadShelters() {
       try {
         const res = await fetch(`${API_BASE_URL}/api/evacuation-shelters`);
-        if (res.ok) {
+        const contentType = res.headers.get('content-type') || '';
+        if (res.ok && contentType.includes('application/json')) {
           const data = await res.json();
-          setShelters(data);
+          if (Array.isArray(data) && data.length > 0) {
+            setShelters(data);
+          }
         }
       } catch (err) {
-        console.warn('Failed to load evacuation shelters:', err.message);
+        console.warn('Using built-in verified Lanao del Norte evacuation shelters:', err.message);
       }
     }
     loadShelters();
@@ -270,7 +275,19 @@ export default function DisasterMap({
     };
   }, []);
 
-  // Calculate & Draw Real-Time Road Route via OSRM API (API #5)
+  // Fly map smoothly when user changes Municipality / Jurisdiction dropdown
+  useEffect(() => {
+    if (!mapInstanceRef.current || !targetLocation) return;
+    if (targetLocation.lat && targetLocation.lng) {
+      mapInstanceRef.current.flyTo(
+        [targetLocation.lat, targetLocation.lng],
+        targetLocation.zoom || 13,
+        { duration: 1.3 }
+      );
+    }
+  }, [targetLocation]);
+
+  // Calculate & Draw Real-Time Road Route via OSRM API (API #5, with direct browser OSRM fallback)
   const handleEvacuationRoute = async (startLat, startLng, destLat = null, destLng = null, mode = 'driving') => {
     if (!mapInstanceRef.current) return;
     setIsRouting(true);
@@ -282,14 +299,19 @@ export default function DisasterMap({
         queryUrl += `&destLat=${destLat}&destLng=${destLng}`;
       }
 
-      const res = await fetch(queryUrl);
-      if (!res.ok) {
-        throw new Error('Routing service returned error');
+      let routeData = null;
+      try {
+        const res = await fetch(queryUrl);
+        const contentType = res.headers.get('content-type') || '';
+        if (res.ok && contentType.includes('application/json')) {
+          routeData = await res.json();
+        }
+      } catch {
+        // Fallback to direct browser OSRM below
       }
 
-      const routeData = await res.json();
-      if (!routeData.success || !routeData.geojson) {
-        throw new Error('Unable to construct route');
+      if (!routeData || !routeData.success || !routeData.geojson) {
+        routeData = await calculateDirectOsrmRoute(startLat, startLng, destLat, destLng, mode, shelters);
       }
 
       // Clear existing route line if any
@@ -678,7 +700,7 @@ export default function DisasterMap({
           title="Toggle view of all designated evacuation centers"
         >
           <Shield size={15} />
-          <span>{showShelters ? `🏥 Shelters Visible (${shelters.length})` : '🏥 View All Evacuation Centers'}</span>
+          <span>{showShelters ? `🏥 Shelters Visible (${displayedShelters.length})` : '🏥 View All Evacuation Centers'}</span>
         </button>
       </div>
 
