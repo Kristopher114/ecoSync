@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import {
   Search, Navigation, AlertCircle, PlusCircle, Loader2,
-  Shield, Compass, X, Car, Footprints, CheckCircle2, MapPin, Lock
+  Shield, Compass, X, Car, Footprints, CheckCircle2, MapPin, Lock,
+  Maximize2, Minimize2
 } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import { EVACUATION_SHELTERS, calculateDirectOsrmRoute } from '../sheltersData';
@@ -29,7 +30,9 @@ export default function DisasterMap({
   onMapClick,
   selectedIncident,
   onSelectIncident,
-  onOpenReportWithLocation
+  onOpenReportWithLocation,
+  isMapExpanded = false,
+  onToggleExpandMap
 }) {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -65,6 +68,16 @@ export default function DisasterMap({
     setSearchError('');
     setShowSuggestions(false);
   }, [effectiveMunicipality]);
+
+  // Smoothly recalculate Leaflet canvas when toggling 50% <-> 70% map expansion
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    mapInstanceRef.current.invalidateSize();
+    const timer = setTimeout(() => {
+      mapInstanceRef.current?.invalidateSize();
+    }, 260);
+    return () => clearTimeout(timer);
+  }, [isMapExpanded]);
 
   // Live Debounced Search Engine (Photon OpenStreetMap API + Nominatim Bounded Viewbox)
   useEffect(() => {
@@ -1055,6 +1068,19 @@ export default function DisasterMap({
               : '🏥 View Evacuation Centers'}
           </span>
         </button>
+
+        {/* Expand Map to 70% / Restore 50% Split View Button */}
+        {onToggleExpandMap && (
+          <button
+            type="button"
+            className={`gmaps-expand-btn ${isMapExpanded ? 'active' : ''}`}
+            onClick={onToggleExpandMap}
+            title={isMapExpanded ? 'Restore 50/50 split view' : 'Expand map to cover 70% of the webpage'}
+          >
+            {isMapExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+            <span>{isMapExpanded ? '50% Split' : 'Expand Map (70%)'}</span>
+          </button>
+        )}
       </div>
 
       {/* Floating GPS / Center on Jurisdiction Button */}

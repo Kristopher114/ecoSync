@@ -76,6 +76,7 @@ export default function App() {
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeBroadcastAlert, setActiveBroadcastAlert] = useState(null);
+  const [isMapExpanded, setIsMapExpanded] = useState(false);
 
   // Sync selectedMunicipality whenever an Admin logs in or logs out
   useEffect(() => {
@@ -284,8 +285,8 @@ export default function App() {
 
       {/* Main View Router */}
       {activeTab === 'map' ? (
-        <main className="main-hub-content">
-          {/* Left Half (50%): Interactive Disaster & Evacuation Map */}
+        <main className={`main-hub-content ${isMapExpanded ? 'map-expanded' : ''}`}>
+          {/* Left Side (50% default / 70% when expanded): Interactive Disaster & Evacuation Map */}
           <section className="map-section-container">
             <div className="map-top-info-bar glass-panel">
               <div className="map-top-info-left">
@@ -322,6 +323,8 @@ export default function App() {
               selectedIncident={selectedIncident}
               onSelectIncident={(inc) => setSelectedIncident(inc)}
               onOpenReportWithLocation={handleOpenReportWithLocation}
+              isMapExpanded={isMapExpanded}
+              onToggleExpandMap={() => setIsMapExpanded(prev => !prev)}
             />
           </section>
 
