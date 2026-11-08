@@ -38,11 +38,6 @@ export default function Navbar({
             <span className="logo-subtitle">Disaster & Relief Coordinator</span>
           </div>
         </div>
-
-        <div className="live-status-pill">
-          <span className="status-dot"></span>
-          <span>5 Live APIs: Radar • Leaflet Map • Gemini AI • News Wire • OSRM Evacuation Routing</span>
-        </div>
       </div>
 
       <nav className="navbar-center">
