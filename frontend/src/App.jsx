@@ -262,6 +262,7 @@ export default function App() {
   // Map clicked: store dropped pin and landmark address
   const handleMapClick = (lat, lng, address) => {
     setClickedCoords({ lat, lng, address });
+    setSelectedIncident(null);
   };
 
   const handleOpenReport = () => {
@@ -529,7 +530,11 @@ export default function App() {
                       id="municipality-dropdown-filter"
                       className="municipality-dropdown-select"
                       value={selectedMunicipality}
-                      onChange={(e) => setSelectedMunicipality(e.target.value)}
+                      onChange={(e) => {
+                        setSelectedMunicipality(e.target.value);
+                        setSelectedIncident(null);
+                        setClickedCoords(null);
+                      }}
                       title="Filter emergencies and navigate map across Lanao del Norte municipalities"
                     >
                       {LANAO_DEL_NORTE_MUNICIPALITIES.map(m => (
@@ -561,7 +566,10 @@ export default function App() {
                   <button
                     key={cat}
                     className={`filter-chip ${selectedCategory === cat ? 'active' : ''}`}
-                    onClick={() => setSelectedCategory(cat)}
+                    onClick={() => {
+                    setSelectedCategory(cat);
+                    setSelectedIncident(null);
+                  }}
                   >
                     {cat === 'All' ? '🌐 All Incidents' :
                      cat === 'Flood' ? '🌊 Floods' :
@@ -584,7 +592,7 @@ export default function App() {
                   <button
                     type="button"
                     className={`date-chip ${dateFilter === 'today' ? 'active' : ''}`}
-                    onClick={() => setDateFilter('today')}
+                    onClick={() => { setDateFilter('today'); setSelectedIncident(null); }}
                     title="Daily Auto-Reset: Shows only emergencies reported today, resetting every midnight"
                   >
                     <span>📅 Today (Auto-Reset)</span>
@@ -594,7 +602,7 @@ export default function App() {
                   <button
                     type="button"
                     className={`date-chip ${dateFilter === '24h' ? 'active' : ''}`}
-                    onClick={() => setDateFilter('24h')}
+                    onClick={() => { setDateFilter('24h'); setSelectedIncident(null); }}
                     title="Show landmarks reported in the past 24 hours"
                   >
                     <span>⏱️ Past 24h</span>

@@ -45,6 +45,7 @@ export default function DisasterMap({
   const routeLayerRef = useRef(null);
   const boundaryLayerRef = useRef(null);
   const clickedPinRef = useRef(null);
+  const lastFlownIncidentIdRef = useRef(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -123,6 +124,7 @@ export default function DisasterMap({
     }
     setActivePinCoords(null);
     setActivePinAddress(null);
+    if (onSelectIncident) onSelectIncident(null); // clear pin
   };
 
   // Fetch Evacuation Shelters Directory from Backend (with instant built-in fallback)
@@ -184,6 +186,7 @@ export default function DisasterMap({
       const lat = e.latlng.lat;
       const lng = e.latlng.lng;
       setActivePinCoords({ lat, lng });
+      if (onSelectIncident) onSelectIncident(null); // map click
 
       if (clickedPinRef.current) {
         map.removeLayer(clickedPinRef.current);
@@ -815,23 +818,36 @@ export default function DisasterMap({
       marker.on('click', () => {
         if (onSelectIncident) onSelectIncident(inc);
       });
+      marker.on('popupclose', () => {
+        if (onSelectIncident) onSelectIncident(null);
+      });
 
       markersLayerRef.current.addLayer(marker);
     });
+  }, [incidents, selectedCategory, currentUser]);
 
+  // Smoothly fly to an incident landmark ONLY when a user explicitly clicks a new incident
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
     if (selectedIncident && selectedIncident.latitude && selectedIncident.longitude) {
-      mapInstanceRef.current.flyTo(
-        [selectedIncident.latitude, selectedIncident.longitude],
-        15,
-        { duration: 1.2 }
-      );
+      if (lastFlownIncidentIdRef.current !== selectedIncident.id) {
+        lastFlownIncidentIdRef.current = selectedIncident.id;
+        mapInstanceRef.current.flyTo(
+          [selectedIncident.latitude, selectedIncident.longitude],
+          15,
+          { duration: 1.2 }
+        );
+      }
+    } else {
+      lastFlownIncidentIdRef.current = null;
     }
-  }, [incidents, selectedCategory, selectedIncident, currentUser]);
+  }, [selectedIncident]);
 
   // Drop a landmark pin & open action popup for a selected registered barangay/landmark
   const handleSelectPlace = (place) => {
     const map = mapInstanceRef.current;
     if (!map || !place) return;
+    if (onSelectIncident) onSelectIncident(null); // search select
 
     const lat = Number(place.lat);
     const lng = Number(place.lng);
