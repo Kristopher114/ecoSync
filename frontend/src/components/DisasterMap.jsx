@@ -1030,7 +1030,9 @@ export default function DisasterMap({
 
   return (
     <div className="map-wrapper glass-panel">
-      {/* Live OpenStreetMap / Photon Search Engine Scoped to Selected Municipality */}
+      {/* Top Header Toolbar with Search & Actions (Pinned at Top of Map) */}
+      <div className="map-header-toolbar">
+        {/* Live OpenStreetMap / Photon Search Engine Scoped to Selected Municipality */}
       <div className="gmaps-search-container">
         <form onSubmit={handleSearch} className="gmaps-search-bar glass-panel">
           <Search size={16} className="text-cyan" style={{ flexShrink: 0 }} />
@@ -1169,9 +1171,12 @@ export default function DisasterMap({
             <span>{isMapExpanded ? '50% Split' : 'Expand Map (70%)'}</span>
           </button>
         )}
+        </div>
       </div>
 
-      {/* Floating GPS / Center on Jurisdiction Button */}
+      {/* Map Canvas with Floating HUD & Map Tile View */}
+      <div className="map-canvas-container">
+        {/* Floating GPS / Center on Jurisdiction Button */}
       <button
         type="button"
         className="gmaps-gps-btn"
@@ -1250,7 +1255,8 @@ export default function DisasterMap({
       )}
 
       {/* Map Container */}
-      <div id="disaster-leaflet-map" ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
+        <div id="disaster-leaflet-map" ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
+      </div>
     </div>
   );
 }
