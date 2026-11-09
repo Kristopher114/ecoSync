@@ -3436,3 +3436,55 @@
   gap: 8px;
   align-items: center;
 }
+
+
+/* --- COMPREHENSIVE SHELTER PLACEMENT FORM GRID --- */
+.naming-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+  width: 100%;
+}
+
+.naming-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.naming-input-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.naming-input-group label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.naming-input-group input,
+.naming-input-group select {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  color: #f8fafc;
+  font-size: 0.84rem;
+  font-weight: 600;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.naming-input-group input:focus,
+.naming-input-group select:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+}
+
+.naming-select option {
+  background: #0f172a;
+  color: #f8fafc;
+}

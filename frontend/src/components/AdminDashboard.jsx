@@ -23,7 +23,8 @@ export default function AdminDashboard({
   shelters: externalShelters = [],
   onAddShelter,
   onDeleteShelter,
-  onRefreshShelters
+  onRefreshShelters,
+  onNavigateToMap
 }) {
   // Sidebar active section: 'crud' | 'shelters' | 'analytics' | 'all'
   const [activeSection, setActiveSection] = useState('crud');
@@ -70,8 +71,18 @@ export default function AdminDashboard({
   const [clickedSpot, setClickedSpot] = useState(null); // { lat, lng, address }
   const [newShelterName, setNewShelterName] = useState('');
   const [newShelterCapacity, setNewShelterCapacity] = useState(500);
+  const [newShelterOccupancy, setNewShelterOccupancy] = useState(0);
+  const [newShelterStatus, setNewShelterStatus] = useState('Active (Available)');
+  const [newShelterElevation, setNewShelterElevation] = useState('High Ground (Flood-Safe)');
+  const [newShelterAmenities, setNewShelterAmenities] = useState('Emergency Power, Clean Water Filtration, First Aid Station');
+  const [newShelterContact, setNewShelterContact] = useState('+63 917 882 1400');
   const [isSubmittingShelter, setIsSubmittingShelter] = useState(false);
   const [shelterToast, setShelterToast] = useState('');
+
+  // Interactive Test Route Modal State
+  const [simulatedRouteData, setSimulatedRouteData] = useState(null);
+  const routeModalMapContainerRef = useRef(null);
+  const routeModalMapInstanceRef = useRef(null);
 
   // Initialize Interactive Shelter Placement Map when opened
   useEffect(() => {
@@ -162,6 +173,10 @@ export default function AdminDashboard({
 
     setIsSubmittingShelter(true);
     try {
+      const parsedAmenities = typeof newShelterAmenities === 'string'
+        ? newShelterAmenities.split(',').map(s => s.trim()).filter(Boolean)
+        : (Array.isArray(newShelterAmenities) ? newShelterAmenities : ['Emergency Power', 'Clean Water Filtration']);
+
       const newSiteData = {
         name: newShelterName.trim(),
         municipality: defaultMuniShort,
@@ -170,11 +185,11 @@ export default function AdminDashboard({
         latitude: clickedSpot.lat,
         longitude: clickedSpot.lng,
         total_capacity: parseInt(newShelterCapacity, 10) || 500,
-        current_occupancy: 0,
-        elevation: 'Elevated High Ground (Zero Flood Risk)',
-        amenities: ['Emergency Power', 'Clean Water Filtration', 'First Aid Station', 'Relief Rations'],
-        contact: '+63 917 882 1400',
-        status: 'Active (Available)',
+        current_occupancy: parseInt(newShelterOccupancy, 10) || 0,
+        status: newShelterStatus || 'Active (Available)',
+        elevation: (newShelterElevation || 'High Ground (Flood-Safe)').trim(),
+        amenities: parsedAmenities.length > 0 ? parsedAmenities : ['Emergency Power', 'Clean Water Filtration'],
+        contact: (newShelterContact || '+63 900 000 0000').trim(),
         created_by: currentUser?.username || 'Admin Coordinator'
       };
 
@@ -204,6 +219,12 @@ export default function AdminDashboard({
       }
       setClickedSpot(null);
       setNewShelterName('');
+      setNewShelterCapacity(500);
+      setNewShelterOccupancy(0);
+      setNewShelterStatus('Active (Available)');
+      setNewShelterElevation('High Ground (Flood-Safe)');
+      setNewShelterAmenities('Emergency Power, Clean Water Filtration, First Aid Station');
+      setNewShelterContact('+63 917 882 1400');
     } catch (err) {
       alert(`Error saving shelter: ${err.message}`);
     } finally {
@@ -308,36 +329,108 @@ export default function AdminDashboard({
     const destLng = targetShelter ? targetShelter.longitude : null;
 
     try {
-      let url = `${API_BASE_URL}/api/evacuation-route?startLat=${startLat}&startLng=${startLng}&mode=driving`;
-      if (destLat && destLng) {
-        url += `&destLat=${destLat}&destLng=${destLng}`;
-      }
-
       let routeData = null;
       try {
+        let url = `${API_BASE_URL}/api/evacuation-route?startLat=${startLat}&startLng=${startLng}&mode=driving`;
+        if (destLat && destLng) url += `&destLat=${destLat}&destLng=${destLng}`;
         const res = await fetch(url);
         const contentType = res.headers.get('content-type') || '';
         if (res.ok && contentType.includes('application/json')) {
           routeData = await res.json();
         }
-      } catch {
-        // Fallback to direct browser OSRM query below
-      }
+      } catch {}
 
-      if (!routeData || !routeData.success) {
+      if (!routeData || !routeData.success || !routeData.geojson) {
         routeData = await calculateDirectOsrmRoute(startLat, startLng, destLat, destLng, 'driving', scopedShelters);
       }
 
-      setRouteToast(
-        `✅ OSRM Street Route Verified: ${routeData.distance_km} km to ${targetShelter?.name || routeData.shelter?.name} (${routeData.duration_mins} mins travel time)`
-      );
+      setSimulatedRouteData({
+        ...routeData,
+        shelter: targetShelter,
+        startLat,
+        startLng,
+        destLat,
+        destLng
+      });
+      setRouteToast(`✅ OSRM Street Route Verified: ${routeData.distance_km} km to ${targetShelter?.name || routeData.shelter?.name} (${routeData.duration_mins} mins travel time)`);
       setTimeout(() => setRouteToast(''), 8000);
     } catch (err) {
       console.warn('Routing simulation error:', err.message);
+      alert('Could not verify OSRM route: ' + err.message);
     } finally {
       setIsSimulatingRoute(false);
     }
   };
+
+  // Initialize Route Simulation Map when modal is opened
+  useEffect(() => {
+    if (!simulatedRouteData || !routeModalMapContainerRef.current) return;
+
+    const timer = setTimeout(() => {
+      if (!routeModalMapContainerRef.current) return;
+
+      if (routeModalMapInstanceRef.current) {
+        routeModalMapInstanceRef.current.remove();
+        routeModalMapInstanceRef.current = null;
+      }
+
+      const map = L.map(routeModalMapContainerRef.current, {
+        zoomControl: true
+      });
+      routeModalMapInstanceRef.current = map;
+
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19
+      }).addTo(map);
+
+      // Draw GeoJSON route line
+      if (simulatedRouteData.geojson) {
+        const geoLayer = L.geoJSON(simulatedRouteData.geojson, {
+          style: {
+            color: '#38bdf8',
+            weight: 6,
+            opacity: 0.95,
+            lineJoin: 'round',
+            lineCap: 'round'
+          }
+        }).addTo(map);
+
+        map.fitBounds(geoLayer.getBounds(), { padding: [40, 40], maxZoom: 16 });
+      }
+
+      // Start Pin (Municipal Center)
+      const startIcon = L.divIcon({
+        className: 'route-modal-start-icon',
+        html: `<div style="background:#0284c7;color:#fff;width:26px;height:26px;border-radius:50%;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 0 10px #0284c7;">📍</div>`,
+        iconSize: [26, 26],
+        iconAnchor: [13, 13]
+      });
+      L.marker([simulatedRouteData.startLat, simulatedRouteData.startLng], { icon: startIcon })
+        .bindPopup(`<strong>Starting Origin</strong><br/>${defaultMuniShort} Jurisdiction Center`)
+        .addTo(map);
+
+      // Destination Pin (Evacuation Center)
+      const destIcon = L.divIcon({
+        className: 'route-modal-dest-icon',
+        html: `<div style="background:#10b981;color:#fff;width:30px;height:30px;border-radius:8px;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 0 12px #10b981;">🛡️</div>`,
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
+      });
+      L.marker([simulatedRouteData.destLat, simulatedRouteData.destLng], { icon: destIcon })
+        .bindPopup(`<strong>${simulatedRouteData.shelter?.name}</strong><br/>Capacity: ${simulatedRouteData.shelter?.total_capacity || 500} Cots`)
+        .addTo(map);
+
+    }, 150);
+
+    return () => {
+      clearTimeout(timer);
+      if (routeModalMapInstanceRef.current) {
+        routeModalMapInstanceRef.current.remove();
+        routeModalMapInstanceRef.current = null;
+      }
+    };
+  }, [simulatedRouteData]);
 
   // KPI calculations (scoped strictly to the Admin's jurisdiction)
   const totalIncidents = scopedIncidents.length;
@@ -869,43 +962,109 @@ export default function AdminDashboard({
 
                   {/* Naming Bar - Activates when an empty spot is clicked */}
                   {clickedSpot ? (
-                    <form onSubmit={handleConfirmCreateShelter} className="clicked-spot-naming-bar">
-                      <div className="naming-bar-left">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                          <span className="badge-pin-drop">📍 Selected Spot</span>
-                          <span style={{ fontSize: '0.82rem', color: '#cbd5e1', fontWeight: 600 }}>
+                    <form onSubmit={handleConfirmCreateShelter} className="clicked-spot-naming-bar glass-panel">
+                      <div className="naming-bar-header">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span className="badge-pin-drop">📍 Selected Coordinates</span>
+                          <span style={{ fontSize: '0.84rem', color: '#38bdf8', fontWeight: 700 }}>
                             {clickedSpot.address}
                           </span>
                           <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontFamily: 'monospace' }}>
                             ({clickedSpot.lat.toFixed(4)}, {clickedSpot.lng.toFixed(4)})
                           </span>
                         </div>
+                      </div>
 
-                        <div className="naming-inputs-row">
-                          <div className="naming-input-wrap">
-                            <label>Give this Shelter a Name *</label>
-                            <input
-                              type="text"
-                              required
-                              autoFocus
-                              placeholder="e.g. Kapatagan North Community Gym"
-                              value={newShelterName}
-                              onChange={(e) => setNewShelterName(e.target.value)}
-                            />
-                          </div>
-                          <div className="naming-input-wrap-sm">
-                            <label>Cots Capacity</label>
-                            <input
-                              type="number"
-                              min="20"
-                              value={newShelterCapacity}
-                              onChange={(e) => setNewShelterCapacity(e.target.value)}
-                            />
-                          </div>
+                      <div className="naming-form-grid">
+                        {/* Name */}
+                        <div className="naming-input-group full-width">
+                          <label>Evacuation Shelter Name *</label>
+                          <input
+                            type="text"
+                            required
+                            autoFocus
+                            placeholder="e.g. Kapatagan National High School Evacuation Center"
+                            value={newShelterName}
+                            onChange={(e) => setNewShelterName(e.target.value)}
+                          />
+                        </div>
+
+                        {/* Total Capacity */}
+                        <div className="naming-input-group">
+                          <label>Total Cots Capacity (total_capacity)</label>
+                          <input
+                            type="number"
+                            min="10"
+                            required
+                            placeholder="500"
+                            value={newShelterCapacity}
+                            onChange={(e) => setNewShelterCapacity(e.target.value)}
+                          />
+                        </div>
+
+                        {/* Current Occupancy */}
+                        <div className="naming-input-group">
+                          <label>Current Occupancy (current_occupancy)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            value={newShelterOccupancy}
+                            onChange={(e) => setNewShelterOccupancy(e.target.value)}
+                          />
+                        </div>
+
+                        {/* Status */}
+                        <div className="naming-input-group">
+                          <label>Operational Status (status)</label>
+                          <select
+                            value={newShelterStatus}
+                            onChange={(e) => setNewShelterStatus(e.target.value)}
+                            className="naming-select"
+                          >
+                            <option value="Active (Available)">🟢 Active (Available)</option>
+                            <option value="Active (Near Full)">🟡 Active (Near Full)</option>
+                            <option value="Full / At Capacity">🔴 Full / At Capacity</option>
+                            <option value="Standby (Preparation)">⚪ Standby (Preparation)</option>
+                            <option value="Closed / Inactive">⚫ Closed / Inactive</option>
+                          </select>
+                        </div>
+
+                        {/* Elevation */}
+                        <div className="naming-input-group">
+                          <label>Elevation / Flood-Safety (elevation)</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. High Ground (Flood-Safe)"
+                            value={newShelterElevation}
+                            onChange={(e) => setNewShelterElevation(e.target.value)}
+                          />
+                        </div>
+
+                        {/* Contact */}
+                        <div className="naming-input-group">
+                          <label>Emergency Contact Hotline (contact)</label>
+                          <input
+                            type="text"
+                            placeholder="+63 917 882 1400"
+                            value={newShelterContact}
+                            onChange={(e) => setNewShelterContact(e.target.value)}
+                          />
+                        </div>
+
+                        {/* Amenities */}
+                        <div className="naming-input-group full-width">
+                          <label>Key Amenities & Supplies (amenities — comma-separated)</label>
+                          <input
+                            type="text"
+                            placeholder="Emergency Power, Clean Water Filtration, First Aid Station, Relief Rations"
+                            value={newShelterAmenities}
+                            onChange={(e) => setNewShelterAmenities(e.target.value)}
+                          />
                         </div>
                       </div>
 
-                      <div className="naming-bar-actions">
+                      <div className="naming-bar-actions" style={{ marginTop: '14px', display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                         <button
                           type="button"
                           className="btn-secondary"
@@ -923,12 +1082,12 @@ export default function AdminDashboard({
                           type="submit"
                           className="btn-primary"
                           disabled={isSubmittingShelter}
-                          style={{ minWidth: '180px', justifyContent: 'center' }}
+                          style={{ minWidth: '220px', justifyContent: 'center' }}
                         >
                           {isSubmittingShelter ? (
                             <>
                               <Loader2 size={15} className="spin" />
-                              <span>Saving to OSRM...</span>
+                              <span>Saving to Supabase...</span>
                             </>
                           ) : (
                             <>
@@ -1156,6 +1315,115 @@ export default function AdminDashboard({
           )}
         </div>
       </div>
+      {/* Route Simulation Visual Verification Modal */}
+      {simulatedRouteData && (
+        <div className="modal-backdrop" style={{ zIndex: 9999 }}>
+          <div className="modal-card-compact glass-panel" style={{ maxWidth: '640px', width: '92%', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="modal-header-compact">
+              <div className="modal-title-wrapper">
+                <Navigation size={20} className="text-cyan" />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>OSRM Road Evacuation Route Verified</h3>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setSimulatedRouteData(null)}
+                title="Close Route Preview"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div style={{ padding: '16px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ fontSize: '1rem', fontWeight: 800, color: '#f8fafc' }}>
+                    🛡️ {simulatedRouteData.shelter?.name}
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                    {simulatedRouteData.shelter?.address}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <span style={{ background: 'rgba(6,182,212,0.2)', color: '#38bdf8', padding: '4px 10px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700 }}>
+                    📏 {simulatedRouteData.distance_km} km
+                  </span>
+                  <span style={{ background: 'rgba(16,185,129,0.2)', color: '#34d399', padding: '4px 10px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700 }}>
+                    ⏱️ {simulatedRouteData.duration_mins} mins
+                  </span>
+                </div>
+              </div>
+
+              {/* Map Preview Container */}
+              <div
+                ref={routeModalMapContainerRef}
+                style={{
+                  width: '100%',
+                  height: '280px',
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  border: '1px solid rgba(6,182,212,0.4)',
+                  marginBottom: '14px',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.5)'
+                }}
+              />
+
+              {/* Turn-by-Turn Steps */}
+              {Array.isArray(simulatedRouteData.steps) && simulatedRouteData.steps.length > 0 && (
+                <div style={{ background: 'rgba(15,23,42,0.8)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '10px 14px', marginBottom: '14px' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    🧭 Turn-by-Turn Road Instructions
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {simulatedRouteData.steps.map((st, idx) => (
+                      <div key={idx} style={{ fontSize: '0.78rem', color: '#cbd5e1', display: 'flex', justifyContent: 'space-between' }}>
+                        <span>• {st.instruction}</span>
+                        {st.distance_m > 0 && <span style={{ color: '#94a3b8', fontSize: '0.72rem' }}>{st.distance_m}m</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '12px' }}>
+                {onNavigateToMap && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSimulatedRouteData(null);
+                      onNavigateToMap(simulatedRouteData.shelter);
+                    }}
+                    style={{
+                      background: 'linear-gradient(135deg, #06b6d4, #0284c7)',
+                      color: '#fff',
+                      border: 'none',
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      fontWeight: 700,
+                      fontSize: '0.82rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <Compass size={14} />
+                    <span>View on Live Map</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setSimulatedRouteData(null)}
+                  style={{ padding: '8px 16px', fontSize: '0.82rem' }}
+                >
+                  Close Preview
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

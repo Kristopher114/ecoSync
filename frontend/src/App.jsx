@@ -794,6 +794,9 @@ export default function App() {
                 onAddShelter={handleAddShelter}
                 onDeleteShelter={handleDeleteShelter}
                 onRefreshShelters={fetchShelters}
+                onNavigateToMap={(shelter) => {
+                  setActiveTab('map');
+                }}
               />
             </DashboardErrorBoundary>
           ) : (
