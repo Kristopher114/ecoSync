@@ -14,7 +14,7 @@ import {
   getMunicipalityById,
   doesIncidentBelongToMunicipality
 } from './municipalities';
-import { API_BASE_URL } from './config';
+import { API_BASE_URL, SUPABASE_URL, SUPABASE_KEY } from './config';
 import { getAllMergedShelters, saveCustomShelter, removeCustomShelter } from './sheltersData';
 import './App.css';
 
@@ -128,6 +128,7 @@ export default function App() {
   const [shelters, setShelters] = useState(() => getAllMergedShelters([]));
 
   const fetchShelters = async () => {
+    // 1. Try Express backend if running
     try {
       const res = await fetch(`${API_BASE_URL}/api/evacuation-shelters`);
       const contentType = res.headers.get('content-type') || '';
@@ -135,42 +136,82 @@ export default function App() {
         const data = await res.json();
         if (Array.isArray(data)) {
           setShelters(getAllMergedShelters(data));
+          return;
+        }
+      }
+    } catch {}
+
+    // 2. Direct Supabase PostgREST sync (for Vercel & Incognito)
+    try {
+      const sbRes = await fetch(`${SUPABASE_URL}/rest/v1/evacuation_shelters?select=*&order=created_at.desc`, {
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`
+        }
+      });
+      if (sbRes.ok) {
+        const cloudData = await sbRes.json();
+        if (Array.isArray(cloudData)) {
+          setShelters(getAllMergedShelters(cloudData));
         }
       }
     } catch (err) {
-      console.warn('Error fetching evacuation shelters:', err.message);
+      console.warn('Error fetching evacuation shelters from Supabase:', err.message);
     }
   };
 
   const handleAddShelter = async (shelterData) => {
+    const shelterId = shelterData.id || `SHELTER-CUSTOM-${Date.now().toString(36).toUpperCase()}`;
+    const payload = {
+      ...shelterData,
+      id: shelterId,
+      status: shelterData.status || 'Active (Available)',
+      is_custom: true
+    };
+
+    // 1. Try local Express backend if available
     try {
       const res = await fetch(`${API_BASE_URL}/api/evacuation-shelters`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(shelterData)
+        body: JSON.stringify(payload)
       });
-      const data = await res.json();
-      const saved = data.shelter || {
-        ...shelterData,
-        id: `SHELTER-CUSTOM-${Date.now()}`,
-        status: shelterData.status || 'Active (Available)',
-        is_custom: true
-      };
-      if (!saved.status) saved.status = 'Active (Available)';
-      saveCustomShelter(saved);
-      setShelters(prev => getAllMergedShelters([saved, ...prev]));
-      return { success: true, shelter: saved };
+      if (res.ok) {
+        const data = await res.json();
+        const saved = data.shelter || payload;
+        saveCustomShelter(saved);
+        setShelters(prev => getAllMergedShelters([saved, ...prev]));
+        return { success: true, shelter: saved };
+      }
+    } catch {}
+
+    // 2. Direct Supabase Cloud Save (Works on Vercel without local server!)
+    try {
+      const sbRes = await fetch(`${SUPABASE_URL}/rest/v1/evacuation_shelters`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(payload)
+      });
+      if (sbRes.ok) {
+        const cloudSaved = await sbRes.json();
+        const saved = (Array.isArray(cloudSaved) && cloudSaved[0]) ? cloudSaved[0] : payload;
+        saveCustomShelter(saved);
+        setShelters(prev => getAllMergedShelters([saved, ...prev]));
+        return { success: true, shelter: saved };
+      }
     } catch (err) {
-      const fallbackShelter = {
-        ...shelterData,
-        id: `SHELTER-CUSTOM-${Date.now()}`,
-        status: shelterData.status || 'Active (Available)',
-        is_custom: true
-      };
-      saveCustomShelter(fallbackShelter);
-      setShelters(prev => getAllMergedShelters([fallbackShelter, ...prev]));
-      return { success: true, shelter: fallbackShelter };
+      console.warn('Direct Supabase shelter insert error:', err.message);
     }
+
+    // 3. Fallback to localStorage
+    saveCustomShelter(payload);
+    setShelters(prev => getAllMergedShelters([payload, ...prev]));
+    return { success: true, shelter: payload };
   };
 
   const handleDeleteShelter = async (shelterId) => {
@@ -178,9 +219,18 @@ export default function App() {
       await fetch(`${API_BASE_URL}/api/evacuation-shelters/${shelterId}`, {
         method: 'DELETE'
       });
-    } catch (err) {
-      // ignore
-    }
+    } catch {}
+
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/evacuation_shelters?id=eq.${shelterId}`, {
+        method: 'DELETE',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`
+        }
+      });
+    } catch {}
+
     removeCustomShelter(shelterId);
     setShelters(prev => prev.filter(s => s.id !== shelterId));
   };
@@ -215,10 +265,28 @@ export default function App() {
         const data = await res.json();
         if (Array.isArray(data)) {
           setIncidents(data);
+          setIsLoading(false);
+          return;
+        }
+      }
+    } catch {}
+
+    // Direct Supabase Cloud Fallback for Vercel
+    try {
+      const sbRes = await fetch(`${SUPABASE_URL}/rest/v1/incidents?select=*&order=created_at.desc`, {
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`
+        }
+      });
+      if (sbRes.ok) {
+        const data = await sbRes.json();
+        if (Array.isArray(data)) {
+          setIncidents(data);
         }
       }
     } catch (err) {
-      console.warn('Backend connection issue or starting up:', err.message);
+      console.warn('Error fetching incidents from Supabase:', err.message);
     } finally {
       setIsLoading(false);
     }

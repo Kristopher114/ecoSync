@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Sparkles, AlertCircle, Send, Loader2, CheckCircle2, MapPin } from 'lucide-react';
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL, SUPABASE_URL, SUPABASE_KEY } from '../config';
 
 export default function ReportModal({ isOpen, onClose, onSubmitSuccess, clickedCoords, currentUser }) {
   const [description, setDescription] = useState('');
@@ -71,30 +71,61 @@ export default function ReportModal({ isOpen, onClose, onSubmitSuccess, clickedC
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/incidents`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: title || 'Citizen Emergency Report',
-          description,
-          category,
-          urgency,
-          latitude: parseFloat(latitude),
-          longitude: parseFloat(longitude),
-          location_name: locationName || 'Pinned on Map',
-          reporter_name: currentUser?.username || 'Verified Volunteer',
-          reporter_email: reporterEmail || (currentUser ? `${currentUser.username}@community.org` : 'anonymous@community.org')
-        })
-      });
+      const payload = {
+        title,
+        description,
+        category,
+        urgency,
+        latitude: parseFloat(latitude),
+        longitude: parseFloat(longitude),
+        location_name: locationName || 'Pinned on Map',
+        reporter_name: currentUser?.username || 'Verified Volunteer',
+        reporter_email: reporterEmail || (currentUser ? `${currentUser.username}@community.org` : 'anonymous@community.org')
+      };
 
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error || errJson.message || `Server error (${res.status})`);
+      // 1. Try local Express backend
+      let created = null;
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/incidents`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          const result = await res.json();
+          created = result.incident;
+        }
+      } catch {}
+
+      // 2. Direct Supabase Cloud Fallback (Zero backend needed for Vercel)
+      if (!created) {
+        const sbRes = await fetch(`${SUPABASE_URL}/rest/v1/incidents`, {
+          method: 'POST',
+          headers: {
+            apikey: SUPABASE_KEY,
+            Authorization: `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify({
+            ...payload,
+            status: 'Open',
+            created_at: new Date().toISOString()
+          })
+        });
+
+        if (sbRes.ok) {
+          const cloudData = await sbRes.json();
+          created = Array.isArray(cloudData) ? cloudData[0] : cloudData;
+        }
       }
 
-      const result = await res.json();
-      onSubmitSuccess(result.incident, result.dispatch);
-      onClose();
+      if (created) {
+        onSubmitSuccess(created);
+        onClose();
+        return;
+      }
+      throw new Error('Could not submit report. Please check your connection.');
     } catch (err) {
       alert('Error creating incident: ' + err.message);
     } finally {

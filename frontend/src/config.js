@@ -6,3 +6,7 @@ export const API_BASE_URL = import.meta.env.VITE_API_URL || (
     ? window.location.origin
     : 'http://localhost:5000'
 );
+
+// Direct Cloud Supabase Integration (Zero backend needed for Vercel global sync)
+export const SUPABASE_URL = 'https://wpoajxlftegyibcybtzr.supabase.co';
+export const SUPABASE_KEY = 'sb_publishable_kw1czTkC_ugnCdE5vtk4lg_5yNoVuGZ';
