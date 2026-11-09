@@ -6,7 +6,7 @@ import WeatherWidget from './components/WeatherWidget';
 import ReportModal from './components/ReportModal';
 import AuthModal from './components/AuthModal';
 import {
-  ShieldAlert, Lock, UserPlus, Radio, CheckCircle2, X,
+  ShieldAlert, Lock, UserPlus, CheckCircle2, X,
   Calendar, Clock, Filter, MapPin
 } from 'lucide-react';
 import {
@@ -124,8 +124,7 @@ export default function App() {
   const [clickedCoords, setClickedCoords] = useState(null);
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeBroadcastAlert, setActiveBroadcastAlert] = useState(null);
-  const [isMapExpanded, setIsMapExpanded] = useState(false);
+    const [isMapExpanded, setIsMapExpanded] = useState(false);
   const [shelters, setShelters] = useState(() => getAllMergedShelters([]));
 
   const fetchShelters = async () => {
@@ -342,12 +341,8 @@ export default function App() {
   };
 
   // Called when a citizen successfully submits an incident report
-  const handleReportSuccess = (incident, dispatch) => {
+  const handleReportSuccess = () => {
     fetchIncidents();
-    if (dispatch) {
-      setActiveBroadcastAlert(dispatch);
-      setTimeout(() => setActiveBroadcastAlert(null), 9000);
-    }
   };
 
   // Auth Handlers
@@ -452,28 +447,7 @@ export default function App() {
         onSignOut={handleSignOut}
       />
 
-      {/* Real-time Emergency Broadcast Alert Banner (API #5) */}
-      {activeBroadcastAlert && (
-        <div className="global-broadcast-banner">
-          <div className="global-broadcast-content">
-            <Radio size={18} className="pulse-icon text-cyan" />
-            <div>
-              <strong>🚨 EMERGENCY BROADCAST DISPATCHED ({activeBroadcastAlert.id}):</strong>{' '}
-              <span>
-                Alert sent to <strong>{activeBroadcastAlert.recipients_count} volunteers</strong> ({activeBroadcastAlert.recipient_group}) via {activeBroadcastAlert.channel}!
-              </span>
-            </div>
-          </div>
-          <button
-            className="global-broadcast-close"
-            onClick={() => setActiveBroadcastAlert(null)}
-            title="Dismiss Alert"
-          >
-            <X size={15} />
-          </button>
-        </div>
-      )}
-
+      
       {/* Main View Router */}
       {activeTab === 'map' ? (
         <main className={`main-hub-content ${isMapExpanded ? 'map-expanded' : ''}`}>

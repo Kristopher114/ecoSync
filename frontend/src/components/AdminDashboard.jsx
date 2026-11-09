@@ -1037,7 +1037,7 @@ export default function AdminDashboard({
                           <td>
                             <span className="status-pill-delivered">
                               <span className="status-dot-emerald"></span>
-                              {(shelter.status || 'Active (Available)').split(' ')[0]}
+                              {(String(shelter.status || 'Active')).split(' ')[0]}
                             </span>
                           </td>
                           <td>
