@@ -6,7 +6,7 @@ import {
   Maximize2, Minimize2
 } from 'lucide-react';
 import { API_BASE_URL } from '../config';
-import { EVACUATION_SHELTERS, calculateDirectOsrmRoute } from '../sheltersData';
+import { getAllMergedShelters, calculateDirectOsrmRoute } from '../sheltersData';
 import {
   getMunicipalityById,
   doesShelterBelongToMunicipality,
@@ -57,8 +57,9 @@ export default function DisasterMap({
 
   // Evacuation Shelters & OSRM Routing States (API #5)
   const [showShelters, setShowShelters] = useState(true);
-  const [shelters, setShelters] = useState(EVACUATION_SHELTERS);
-  const activeShelters = externalShelters && externalShelters.length > 0 ? externalShelters : shelters;
+  const activeShelters = (Array.isArray(externalShelters) && externalShelters.length > 0)
+    ? externalShelters
+    : getAllMergedShelters([]);
   const [activeRoute, setActiveRoute] = useState(null);
   const [isRouting, setIsRouting] = useState(false);
   const [routingError, setRoutingError] = useState(null);
@@ -114,7 +115,7 @@ export default function DisasterMap({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [searchQuery, effectiveMunicipality, shelters]);
+  }, [searchQuery, effectiveMunicipality, activeShelters]);
 
   // Clear manually dropped landmark pin
   const handleClearPin = () => {
@@ -127,24 +128,7 @@ export default function DisasterMap({
     if (onSelectIncident) onSelectIncident(null); // clear pin
   };
 
-  // Fetch Evacuation Shelters Directory from Backend (with instant built-in fallback)
-  useEffect(() => {
-    async function loadShelters() {
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/evacuation-shelters`);
-        const contentType = res.headers.get('content-type') || '';
-        if (res.ok && contentType.includes('application/json')) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            setShelters(data);
-          }
-        }
-      } catch (err) {
-        console.warn('Using built-in verified Lanao del Norte evacuation shelters:', err.message);
-      }
-    }
-    loadShelters();
-  }, []);
+// Shelters are synchronized from Cloud Supabase via parent props
 
   // Initialize Leaflet Map
   useEffect(() => {
@@ -680,7 +664,7 @@ export default function DisasterMap({
       marker.bindPopup(popupDiv);
       sheltersLayerRef.current.addLayer(marker);
     });
-  }, [shelters, displayedShelters, showShelters, activePinCoords, selectedIncident, lockedMunicipality]);
+  }, [activeShelters, displayedShelters, showShelters, activePinCoords, selectedIncident, lockedMunicipality]);
 
   // Update Incident Markers
   useEffect(() => {

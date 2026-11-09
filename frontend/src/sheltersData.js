@@ -408,7 +408,7 @@ export async function calculateDirectOsrmRoute(startLat, startLng, destLat = nul
 
 // --- DYNAMIC ADMIN-INPUTTED EVACUATION SHELTERS HELPERS ---
 
-const LOCAL_STORAGE_CUSTOM_SHELTERS_KEY = 'ecosync_custom_shelters';
+const LOCAL_STORAGE_CUSTOM_SHELTERS_KEY = 'ecosync_custom_shelters_v2';
 
 export function getCustomShelters() {
   try {
@@ -449,29 +449,54 @@ export function getAllMergedShelters(serverShelters = []) {
   const seenIds = new Set();
   const result = [];
 
-  // 1. First add any custom shelters (from local storage or server marked as custom)
-  for (const s of localCustom) {
-    if (!seenIds.has(s.id)) {
-      seenIds.add(s.id);
-      result.push({ ...s, is_custom: true, status: s.status || 'Active (Available)' });
+  // Helper to normalize coordinates and types
+  const normalizeShelter = (s, isCustom) => ({
+    ...s,
+    latitude: parseFloat(s.latitude),
+    longitude: parseFloat(s.longitude),
+    total_capacity: parseInt(s.total_capacity, 10) || 500,
+    current_occupancy: parseInt(s.current_occupancy, 10) || 0,
+    status: s.status || 'Active (Available)',
+    elevation: s.elevation || 'High Ground (Flood-Safe)',
+    amenities: Array.isArray(s.amenities) ? s.amenities : ['Emergency Power', 'Clean Water Filtration'],
+    contact: s.contact || '+63 900 000 0000',
+    is_custom: isCustom
+  });
+
+  // 1. Add server/Supabase shelters first
+  let hasServerCustom = false;
+  if (Array.isArray(serverShelters)) {
+    for (const s of serverShelters) {
+      if (!seenIds.has(s.id) && s.latitude && s.longitude) {
+        seenIds.add(s.id);
+        const norm = normalizeShelter(s, true);
+        result.push(norm);
+        hasServerCustom = true;
+      }
     }
   }
 
-  // 2. Add server shelters
-  if (Array.isArray(serverShelters)) {
-    for (const s of serverShelters) {
-      if (!seenIds.has(s.id)) {
-        seenIds.add(s.id);
-        result.push({ ...s, is_custom: true, status: s.status || 'Active (Available)' });
-      }
+  // 2. Add local storage custom shelters
+  for (const s of localCustom) {
+    if (!seenIds.has(s.id) && s.latitude && s.longitude) {
+      seenIds.add(s.id);
+      result.push(normalizeShelter(s, true));
     }
+  }
+
+  // If server had custom shelters, ensure localStorage is immediately kept warm/restored
+  if (hasServerCustom) {
+    try {
+      const customOnly = result.filter(r => r.is_custom);
+      localStorage.setItem(LOCAL_STORAGE_CUSTOM_SHELTERS_KEY, JSON.stringify(customOnly));
+    } catch {}
   }
 
   // 3. Add built-in baseline shelters
   for (const s of EVACUATION_SHELTERS) {
     if (!seenIds.has(s.id)) {
       seenIds.add(s.id);
-      result.push({ ...s, is_custom: false, status: s.status || 'Active (Available)' });
+      result.push(normalizeShelter(s, false));
     }
   }
 

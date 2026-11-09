@@ -157,7 +157,8 @@ export default function App() {
             }
           }
 
-          setShelters(getAllMergedShelters(cloudData));
+          const merged = getAllMergedShelters(cloudData);
+          setShelters(merged);
           return;
         }
       }
@@ -337,6 +338,24 @@ export default function App() {
   useEffect(() => {
     fetchIncidents();
     fetchShelters();
+
+    // Cross-browser synchronization interval (every 8s)
+    const syncInterval = setInterval(() => {
+      fetchShelters();
+      fetchIncidents();
+    }, 8000);
+
+    // Instant re-fetch when switching back to browser tab
+    const handleWindowFocus = () => {
+      fetchShelters();
+      fetchIncidents();
+    };
+    window.addEventListener('focus', handleWindowFocus);
+
+    return () => {
+      clearInterval(syncInterval);
+      window.removeEventListener('focus', handleWindowFocus);
+    };
   }, []);
 
   // Update Status (PUT)

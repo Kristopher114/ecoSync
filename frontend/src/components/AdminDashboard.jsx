@@ -6,7 +6,7 @@ import {
   Compass, Navigation, Layers, Database, PieChart, Lock, MapPin, PlusCircle, X, Loader2
 } from 'lucide-react';
 import { API_BASE_URL } from '../config';
-import { EVACUATION_SHELTERS, calculateDirectOsrmRoute } from '../sheltersData';
+import { EVACUATION_SHELTERS, getAllMergedShelters, calculateDirectOsrmRoute } from '../sheltersData';
 import {
   SPECIFIC_MUNICIPALITIES,
   getMunicipalityById,
@@ -36,10 +36,9 @@ export default function AdminDashboard({
     : null;
 
   // Safe Evacuation Centers & OSRM Routing API (API #5)
-  const [shelters, setShelters] = useState(EVACUATION_SHELTERS);
   const effectiveShelters = Array.isArray(externalShelters) && externalShelters.length > 0
     ? externalShelters
-    : shelters;
+    : getAllMergedShelters([]);
 
   const scopedIncidents = assignedMuniObj
     ? (Array.isArray(incidents) ? incidents : []).filter(inc => doesIncidentBelongToMunicipality(inc, assignedMuniObj.id))
@@ -297,20 +296,7 @@ export default function AdminDashboard({
       }
       return;
     }
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/evacuation-shelters`);
-      const contentType = res.headers.get('content-type') || '';
-      if (res.ok && contentType.includes('application/json')) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          setShelters(data);
-        }
-      }
-    } catch (err) {
-      console.warn('Using built-in verified Lanao del Norte shelters directory:', err.message);
-    } finally {
-      setIsLoadingShelters(false);
-    }
+    setIsLoadingShelters(false);
   };
 
   useEffect(() => {
@@ -324,7 +310,7 @@ export default function AdminDashboard({
 
     const startLat = assignedMuniObj ? assignedMuniObj.lat : 8.2250;
     const startLng = assignedMuniObj ? assignedMuniObj.lng : 124.2400;
-    const targetShelter = shelter || scopedShelters[0] || shelters[0] || EVACUATION_SHELTERS[0];
+    const targetShelter = shelter || scopedShelters[0] || effectiveShelters[0] || EVACUATION_SHELTERS[0];
     const destLat = targetShelter ? targetShelter.latitude : null;
     const destLng = targetShelter ? targetShelter.longitude : null;
 
