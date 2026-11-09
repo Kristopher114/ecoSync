@@ -462,7 +462,7 @@ export function getAllMergedShelters(serverShelters = []) {
     for (const s of serverShelters) {
       if (!seenIds.has(s.id)) {
         seenIds.add(s.id);
-        result.push({ ...s, status: s.status || 'Active (Available)' });
+        result.push({ ...s, is_custom: true, status: s.status || 'Active (Available)' });
       }
     }
   }

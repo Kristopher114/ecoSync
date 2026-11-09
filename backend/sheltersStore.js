@@ -112,7 +112,6 @@ async function createShelterRecord(shelterData) {
     amenities: Array.isArray(amenities) ? amenities : (amenities ? String(amenities).split(',').map(s => s.trim()) : ['First Aid Station', 'Backup Generator']),
     contact: contact ? contact.trim() : '+63 917 000 0000',
     created_by: created_by || 'Municipal Admin',
-    is_custom: true,
     created_at: new Date().toISOString()
   };
 
