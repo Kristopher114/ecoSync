@@ -15,7 +15,7 @@ import {
   doesIncidentBelongToMunicipality
 } from './municipalities';
 import { API_BASE_URL, SUPABASE_URL, SUPABASE_KEY } from './config';
-import { getAllMergedShelters, saveCustomShelter, removeCustomShelter } from './sheltersData';
+import { getAllMergedShelters, getCustomShelters, saveCustomShelter, removeCustomShelter } from './sheltersData';
 import './App.css';
 
 const CATEGORIES = ['All', 'Flood', 'Medical', 'Fire', 'Rescue', 'Food & Water', 'General'];
@@ -139,26 +139,29 @@ export default function App() {
       if (sbRes.ok) {
         const cloudData = await sbRes.json();
         if (Array.isArray(cloudData)) {
-          // Auto-migrate any un-synced local shelters to Supabase Cloud
-          const cloudIds = new Set(cloudData.map(s => s.id));
-          const localCustom = getCustomShelters();
-          for (const localShelter of localCustom) {
-            if (!cloudIds.has(localShelter.id) && localShelter.name && localShelter.latitude) {
-              const { is_custom, ...cleanRecord } = localShelter;
-              fetch(`${SUPABASE_URL}/rest/v1/evacuation_shelters`, {
-                method: 'POST',
-                headers: {
-                  apikey: SUPABASE_KEY,
-                  Authorization: `Bearer ${SUPABASE_KEY}`,
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(cleanRecord)
-              }).catch(() => {});
-            }
-          }
-
+          // Immediately merge and update UI state FIRST so shelters display instantly
           const merged = getAllMergedShelters(cloudData);
           setShelters(merged);
+
+          // Safely auto-migrate any un-synced local shelters to Supabase Cloud in background
+          try {
+            const cloudIds = new Set(cloudData.map(s => s.id));
+            const localCustom = typeof getCustomShelters === 'function' ? getCustomShelters() : [];
+            for (const localShelter of localCustom) {
+              if (!cloudIds.has(localShelter.id) && localShelter.name && localShelter.latitude) {
+                const { is_custom, ...cleanRecord } = localShelter;
+                fetch(`${SUPABASE_URL}/rest/v1/evacuation_shelters`, {
+                  method: 'POST',
+                  headers: {
+                    apikey: SUPABASE_KEY,
+                    Authorization: `Bearer ${SUPABASE_KEY}`,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify(cleanRecord)
+                }).catch(() => {});
+              }
+            }
+          } catch {}
           return;
         }
       }
