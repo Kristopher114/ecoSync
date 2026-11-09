@@ -273,13 +273,11 @@
   overflow: hidden;
 }
 
-/* Dedicated Pinned Top Toolbar above Map Canvas */
+/* Dedicated Pinned Top Toolbar above Map Canvas (Search Bar Only) */
 .map-header-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   background: rgba(15, 23, 42, 0.96);
   backdrop-filter: blur(14px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -292,9 +290,8 @@
   top: auto;
   left: auto;
   right: auto;
-  width: auto;
-  flex: 1;
-  max-width: 360px;
+  width: 100%;
+  max-width: 100%;
   z-index: 1060;
   display: flex;
   flex-direction: column;
@@ -310,12 +307,12 @@
   max-width: none;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   background: rgba(30, 41, 59, 0.85);
   border: 1px solid rgba(56, 189, 248, 0.35);
-  border-radius: 20px;
-  padding: 6px 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  border-radius: 24px;
+  padding: 8px 16px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
 }
 
 .map-header-toolbar .gmaps-search-bar input {
@@ -323,7 +320,7 @@
   background: transparent;
   border: none;
   color: #f1f5f9;
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   outline: none;
 }
 
@@ -332,7 +329,6 @@
   top: calc(100% + 6px);
   left: 0;
   width: 100%;
-  min-width: 300px;
   z-index: 2000;
 }
 
@@ -344,22 +340,23 @@
   z-index: 2000;
 }
 
-.map-header-toolbar .map-top-actions {
-  position: relative;
-  top: auto;
-  right: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
+/* Map Canvas Container with Floating Action Controls on Top-Right */
 .map-canvas-container {
   position: relative;
   flex: 1;
   width: 100%;
   height: 100%;
   min-height: 480px;
+}
+
+.map-canvas-container .map-top-actions {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* Google Maps Floating Search Bar (Compact Left-Aligned so Right Side Fits More Pills) */

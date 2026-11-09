@@ -1128,8 +1128,11 @@ export default function DisasterMap({
           </div>
         )}
       </div>
+    </div>
 
-      {/* Floating Action Controls on Top-Right */}
+    {/* Map Canvas with Floating Action Buttons & Tile View */}
+    <div className="map-canvas-container">
+      {/* Floating Action Controls Retained on Top-Right of Map Canvas */}
       <div className="map-top-actions">
         {/* Clear Dropped Landmark Pin Button */}
         {activePinCoords && (
@@ -1171,12 +1174,9 @@ export default function DisasterMap({
             <span>{isMapExpanded ? '50% Split' : 'Expand Map (70%)'}</span>
           </button>
         )}
-        </div>
       </div>
 
-      {/* Map Canvas with Floating HUD & Map Tile View */}
-      <div className="map-canvas-container">
-        {/* Floating GPS / Center on Jurisdiction Button */}
+      {/* Floating GPS / Center on Jurisdiction Button */}
       <button
         type="button"
         className="gmaps-gps-btn"
