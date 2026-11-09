@@ -156,7 +156,7 @@ export default function ReportModal({ isOpen, onClose, onSubmitSuccess, clickedC
                 ) : (
                   <>
                     <Sparkles size={12} />
-                    <span>✨ AI Auto-Classify (Gemini)</span>
+                    <span>AI Auto-Classify (Gemini)</span>
                   </>
                 )}
               </button>
@@ -228,7 +228,7 @@ export default function ReportModal({ isOpen, onClose, onSubmitSuccess, clickedC
             <div className="needs-strip-compact">
               <span className="needs-label">AI Needs:</span>
               {actionableNeeds.map((need, idx) => (
-                <span key={idx} className="need-tag-compact">⚡ {need}</span>
+                <span key={idx} className="need-tag-compact">{need}</span>
               ))}
             </div>
           )}
@@ -270,7 +270,7 @@ export default function ReportModal({ isOpen, onClose, onSubmitSuccess, clickedC
           </div>
 
           {/* Row 4: Reporter Email + Action Buttons on same line */}
-          <div className="form-bottom-row">
+          {/* <div className="form-bottom-row">
             <div className="form-group-compact flex-1">
               <label>Reporter Email / Contact (Optional)</label>
               <input
@@ -279,31 +279,30 @@ export default function ReportModal({ isOpen, onClose, onSubmitSuccess, clickedC
                 value={reporterEmail}
                 onChange={(e) => setReporterEmail(e.target.value)}
               />
-            </div>
+            </div> */}
 
-            <div className="modal-actions-compact">
-              <button type="button" className="btn-secondary-compact" onClick={onClose}>
-                Cancel
-              </button>
-              <button
-                id="submit-incident-btn"
-                type="submit"
-                className="btn-danger-compact"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 size={14} className="spin" />
-                    <span>Broadcasting...</span>
-                  </>
-                ) : (
-                  <>
-                    <Send size={14} />
-                    <span>Broadcast Report</span>
-                  </>
-                )}
-              </button>
-            </div>
+          <div className="modal-actions-compact">
+            <button type="button" className="btn-secondary-compact" onClick={onClose}>
+              Cancel
+            </button>
+            <button
+              id="submit-incident-btn"
+              type="submit"
+              className="btn-danger-compact"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={14} className="spin" />
+                  <span>Broadcasting...</span>
+                </>
+              ) : (
+                <>
+                  <Send size={14} />
+                  <span>Broadcast Report</span>
+                </>
+              )}
+            </button>
           </div>
         </form>
       </div>

@@ -303,10 +303,10 @@ export default function WeatherWidget({
         ) : null}
 
         {/* API 1 Attribution Tag */}
-        <div className="weather-api-credit">
+        {/* <div className="weather-api-credit">
           <span className="live-dot-pulse"></span>
           <span>API 1 Active: Open-Meteo Live Radar (100% Free)</span>
-        </div>
+        </div> */}
       </div>
 
       <div className="sidebar-divider" />
@@ -360,10 +360,10 @@ export default function WeatherWidget({
         )}
 
         {/* API 4 Attribution Tag */}
-        <div className="weather-api-credit" style={{ marginTop: '12px' }}>
+        {/* <div className="weather-api-credit" style={{ marginTop: '12px' }}>
           <span className="live-dot-pulse" style={{ background: '#38bdf8', boxShadow: '0 0 8px #38bdf8' }}></span>
           <span>API 4 Active: {newsSource}</span>
-        </div>
+        </div> */}
       </div>
     </div>
   );
