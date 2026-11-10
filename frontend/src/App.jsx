@@ -469,31 +469,74 @@ export default function App() {
     setActiveTab('map');
   };
 
+  // Safe Date parsing helper that handles ISO strings, spaces, and fractional timestamps
+  const parseSafeDate = (dateStr) => {
+    if (!dateStr) return null;
+    if (dateStr instanceof Date) return isNaN(dateStr.getTime()) ? null : dateStr;
+    const str = String(dateStr).trim();
+    // Normalize space separator to 'T'
+    const normalized = str.replace(' ', 'T');
+    const d = new Date(normalized);
+    if (!isNaN(d.getTime())) return d;
+    const raw = new Date(str);
+    return isNaN(raw.getTime()) ? null : raw;
+  };
+
   // Helper to check if an ISO date string matches today's calendar date
   const isDateToday = (dateStr) => {
     if (!dateStr) return false;
-    const d = new Date(dateStr);
+    const d = parseSafeDate(dateStr);
+    if (!d) return false;
     const now = new Date();
-    return d.getFullYear() === now.getFullYear() &&
+    const localMatch = d.getFullYear() === now.getFullYear() &&
       d.getMonth() === now.getMonth() &&
       d.getDate() === now.getDate();
+    const utcMatch = d.getUTCFullYear() === now.getUTCFullYear() &&
+      d.getUTCMonth() === now.getUTCMonth() &&
+      d.getUTCDate() === now.getUTCDate();
+    return localMatch || utcMatch;
   };
 
   // Helper to check if within 24 hours
   const isWithinPast24h = (dateStr) => {
     if (!dateStr) return false;
-    const diff = Date.now() - new Date(dateStr).getTime();
+    const d = parseSafeDate(dateStr);
+    if (!d) return false;
+    const diff = Date.now() - d.getTime();
     return diff >= 0 && diff <= 24 * 60 * 60 * 1000;
   };
 
-  // Helper to check custom YYYY-MM-DD
+  // Helper to check custom YYYY-MM-DD (matches string prefix, local timezone, and UTC)
   const matchesCustomDate = (dateStr, targetYMD) => {
     if (!dateStr || !targetYMD) return false;
-    const d = new Date(dateStr);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}` === targetYMD;
+    const cleanTarget = String(targetYMD).trim();
+    const str = String(dateStr).trim();
+
+    // 1. Direct string prefix match (e.g., '2026-11-09' in '2026-11-09T15:20:21' or '2026-11-09 15:20:21')
+    if (str.startsWith(cleanTarget) || str.replace(' ', 'T').startsWith(cleanTarget)) {
+      return true;
+    }
+
+    const d = parseSafeDate(dateStr);
+    if (!d) return false;
+
+    // 2. Local date match
+    const yLocal = d.getFullYear();
+    const mLocal = String(d.getMonth() + 1).padStart(2, '0');
+    const dayLocal = String(d.getDate()).padStart(2, '0');
+    if (`${yLocal}-${mLocal}-${dayLocal}` === cleanTarget) {
+      return true;
+    }
+
+    // 3. UTC date match
+    const yUtc = d.getUTCFullYear();
+    const mUtc = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const dayUtc = String(d.getUTCDate()).padStart(2, '0');
+    if (`${yUtc}-${mUtc}-${dayUtc}` === cleanTarget) {
+      return true;
+    }
+
+    return false;
   };
 
   const effectiveMunicipality = adminMunicipality || selectedMunicipality;
@@ -735,7 +778,12 @@ export default function App() {
                       title="Pick a specific date to view its landmarks"
                     />
                     {dateFilter === 'custom' && (
-                      <span className="custom-date-badge">Viewing {selectedCustomDate}</span>
+                      <span className="custom-date-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <span>Viewing {selectedCustomDate}</span>
+                        <strong style={{ background: 'rgba(255,255,255,0.2)', padding: '1px 6px', borderRadius: '10px' }}>
+                          {dateFilteredIncidents.length} active
+                        </strong>
+                      </span>
                     )}
                   </div>
                 </div>

@@ -808,7 +808,21 @@ export default function DisasterMap({
 
       markersLayerRef.current.addLayer(marker);
     });
-  }, [incidents, selectedCategory, currentUser]);
+
+    // Auto-fit camera view to active incident landmarks on custom date filter so they are immediately visible on screen
+    if (dateFilter === 'custom' && filtered.length > 0 && mapInstanceRef.current) {
+      const validCoords = filtered
+        .filter(i => !isNaN(Number(i.latitude)) && !isNaN(Number(i.longitude)))
+        .map(i => [Number(i.latitude), Number(i.longitude)]);
+
+      if (validCoords.length > 0) {
+        try {
+          const bounds = L.latLngBounds(validCoords);
+          mapInstanceRef.current.fitBounds(bounds.pad(0.35), { maxZoom: 14, duration: 1.0 });
+        } catch {}
+      }
+    }
+  }, [incidents, selectedCategory, currentUser, dateFilter]);
 
   // Smoothly fly to an incident landmark ONLY when a user explicitly clicks a new incident
   useEffect(() => {
