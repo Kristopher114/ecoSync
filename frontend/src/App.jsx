@@ -38,7 +38,7 @@ class DashboardErrorBoundary extends React.Component {
           <ShieldAlert size={48} color="#ef4444" style={{ margin: '0 auto 16px' }} />
           <h2 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: '8px' }}>Admin Command Hub Recovery</h2>
           <p style={{ color: '#94a3b8', fontSize: '0.88rem', marginBottom: '20px', lineHeight: 1.5 }}>
-            A temporary render error was intercepted in the Admin view: <br/>
+            A temporary render error was intercepted in the Admin view: <br />
             <code style={{ background: 'rgba(0,0,0,0.4)', padding: '4px 8px', borderRadius: '4px', color: '#fca5a5' }}>
               {this.state.error?.message || 'Unknown error'}
             </code>
@@ -69,34 +69,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const saved = localStorage.getItem('ecosync_user');
-      if (!saved) return null;
-      const parsed = JSON.parse(saved);
-
-      // Ensure admin_kapatagan and admin_iligan are strictly Admin Coordinators, never volunteers
-      if (parsed) {
-        const uname = (parsed.username || '').toLowerCase();
-        if (uname === 'admin_kapatagan') {
-          parsed.role = 'admin';
-          parsed.municipality = 'KAPATAGAN';
-          parsed.municipality_name = 'Kapatagan';
-          localStorage.setItem('ecosync_user', JSON.stringify(parsed));
-          return parsed;
-        }
-        if (uname === 'admin_iligan') {
-          parsed.role = 'admin';
-          parsed.municipality = 'ILIGAN';
-          parsed.municipality_name = 'Iligan City';
-          localStorage.setItem('ecosync_user', JSON.stringify(parsed));
-          return parsed;
-        }
-        if (parsed.role === 'admin' && (!parsed.municipality || parsed.municipality === 'ALL')) {
-          parsed.municipality = 'KAPATAGAN';
-          parsed.municipality_name = 'Kapatagan';
-          localStorage.setItem('ecosync_user', JSON.stringify(parsed));
-          return parsed;
-        }
-      }
-      return parsed;
+      return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
     }
@@ -124,7 +97,7 @@ export default function App() {
   const [clickedCoords, setClickedCoords] = useState(null);
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-    const [isMapExpanded, setIsMapExpanded] = useState(false);
+  const [isMapExpanded, setIsMapExpanded] = useState(false);
   const [shelters, setShelters] = useState(() => getAllMergedShelters([]));
 
   const fetchShelters = async () => {
@@ -158,10 +131,10 @@ export default function App() {
                     'Content-Type': 'application/json'
                   },
                   body: JSON.stringify(cleanRecord)
-                }).catch(() => {});
+                }).catch(() => { });
               }
             }
-          } catch {}
+          } catch { }
           return;
         }
       }
@@ -179,7 +152,7 @@ export default function App() {
           setShelters(getAllMergedShelters(data));
         }
       }
-    } catch {}
+    } catch { }
   };
 
   const handleAddShelter = async (shelterData) => {
@@ -252,7 +225,7 @@ export default function App() {
         setShelters(prev => getAllMergedShelters([saved, ...prev]));
         return { success: true, shelter: saved };
       }
-    } catch {}
+    } catch { }
 
     // 3. Fallback to localStorage
     saveCustomShelter(clientShelter);
@@ -265,7 +238,7 @@ export default function App() {
       await fetch(`${API_BASE_URL}/api/evacuation-shelters/${shelterId}`, {
         method: 'DELETE'
       });
-    } catch {}
+    } catch { }
 
     try {
       await fetch(`${SUPABASE_URL}/rest/v1/evacuation_shelters?id=eq.${shelterId}`, {
@@ -275,7 +248,7 @@ export default function App() {
           Authorization: `Bearer ${SUPABASE_KEY}`
         }
       });
-    } catch {}
+    } catch { }
 
     removeCustomShelter(shelterId);
     setShelters(prev => prev.filter(s => s.id !== shelterId));
@@ -299,7 +272,7 @@ export default function App() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({})
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   // Fetch all incidents from Node.js Express backend
@@ -315,7 +288,7 @@ export default function App() {
           return;
         }
       }
-    } catch {}
+    } catch { }
 
     // Direct Supabase Cloud Fallback for Vercel
     try {
@@ -462,7 +435,7 @@ export default function App() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ volunteers: currentList, volunteer_count: currentList.length })
-      }).catch(() => {});
+      }).catch(() => { });
 
       applyLocalVolunteer();
       alert(`✅ Success: Thank you @${currentUser.username}! You are now registered as an on-site volunteer responder for this emergency.`);
@@ -502,8 +475,8 @@ export default function App() {
     const d = new Date(dateStr);
     const now = new Date();
     return d.getFullYear() === now.getFullYear() &&
-           d.getMonth() === now.getMonth() &&
-           d.getDate() === now.getDate();
+      d.getMonth() === now.getMonth() &&
+      d.getDate() === now.getDate();
   };
 
   // Helper to check if within 24 hours
@@ -550,10 +523,10 @@ export default function App() {
     ? dateFilteredIncidents
     : selectedCategory === 'MyReports'
       ? dateFilteredIncidents.filter(inc =>
-          inc.reporter_name === currentUser?.username ||
-          (Array.isArray(inc.volunteers) && inc.volunteers.includes(currentUser?.username)) ||
-          inc.reporter_email === currentUser?.username
-        )
+        inc.reporter_name === currentUser?.username ||
+        (Array.isArray(inc.volunteers) && inc.volunteers.includes(currentUser?.username)) ||
+        inc.reporter_email === currentUser?.username
+      )
       : dateFilteredIncidents.filter(inc => inc.category === selectedCategory);
 
   // Filter by Municipality / Jurisdiction
@@ -580,7 +553,7 @@ export default function App() {
         onSignOut={handleSignOut}
       />
 
-      
+
       {/* Main View Router */}
       {activeTab === 'map' ? (
         <main className={`main-hub-content ${isMapExpanded ? 'map-expanded' : ''}`}>
@@ -699,16 +672,16 @@ export default function App() {
                     key={cat}
                     className={`filter-chip ${selectedCategory === cat ? 'active' : ''}`}
                     onClick={() => {
-                    setSelectedCategory(cat);
-                    setSelectedIncident(null);
-                  }}
+                      setSelectedCategory(cat);
+                      setSelectedIncident(null);
+                    }}
                   >
                     {cat === 'All' ? '🌐 All Incidents' :
-                     cat === 'Flood' ? '🌊 Floods' :
-                     cat === 'Medical' ? '🚑 Medical' :
-                     cat === 'Fire' ? '🔥 Fires' :
-                     cat === 'Rescue' ? '🛟 Rescue' :
-                     cat === 'Food & Water' ? '🍞 Food/Water' : '⚠️ General'}
+                      cat === 'Flood' ? '🌊 Floods' :
+                        cat === 'Medical' ? '🚑 Medical' :
+                          cat === 'Fire' ? '🔥 Fires' :
+                            cat === 'Rescue' ? '🛟 Rescue' :
+                              cat === 'Food & Water' ? '🍞 Food/Water' : '⚠️ General'}
                   </button>
                 ))}
               </div>
@@ -786,16 +759,16 @@ export default function App() {
               pinnedLocation={
                 selectedIncident
                   ? {
-                      lat: selectedIncident.latitude,
-                      lng: selectedIncident.longitude,
-                      name: selectedIncident.location_name || selectedIncident.title
-                    }
+                    lat: selectedIncident.latitude,
+                    lng: selectedIncident.longitude,
+                    name: selectedIncident.location_name || selectedIncident.title
+                  }
                   : clickedCoords
                     ? {
-                        lat: clickedCoords.lat,
-                        lng: clickedCoords.lng,
-                        name: clickedCoords.address
-                      }
+                      lat: clickedCoords.lat,
+                      lng: clickedCoords.lng,
+                      name: clickedCoords.address
+                    }
                     : null
               }
             />
