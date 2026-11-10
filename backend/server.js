@@ -6,7 +6,6 @@ const { analyzeIncidentDescription } = require('./gemini');
 const { registerUser, loginUser, purgeUnassignedAdmins } = require('./userAuth');
 const { getLiveWeather } = require('./weather');
 const { getLiveDisasterNews } = require('./news');
-const { dispatchVolunteerAlert, getDispatchLogs } = require('./comms');
 const {
   getAllIncidents,
   getIncidentById,
@@ -39,8 +38,8 @@ app.get('/api/status', (req, res) => {
 
 // 1. Register a new user (Admin requires a specific Municipality / City jurisdiction)
 app.post('/api/auth/register', async (req, res) => {
-  const { username, email, password, role, municipality, municipality_name } = req.body;
-  const userIdentifier = username || email;
+  const { username, password, role, municipality, municipality_name } = req.body;
+  const userIdentifier = username;
 
   const result = await registerUser(userIdentifier, password, role, municipality, municipality_name);
 
@@ -66,8 +65,8 @@ app.post('/api/auth/purge-unassigned-admins', async (req, res) => {
 
 // 2. Login an existing user
 app.post('/api/auth/login', async (req, res) => {
-  const { username, email, password } = req.body;
-  const userIdentifier = username || email;
+  const { username, password } = req.body;
+  const userIdentifier = username;
 
   const result = await loginUser(userIdentifier, password);
 
@@ -128,7 +127,7 @@ app.post('/api/incidents', async (req, res) => {
       latitude,
       longitude,
       location_name,
-      reporter_email,
+      reporter_name,
       auto_categorize
     } = req.body;
 
@@ -159,27 +158,12 @@ app.post('/api/incidents', async (req, res) => {
       latitude,
       longitude,
       location_name,
-      reporter_email
+      reporter_name: reporter_name || 'Verified Volunteer'
     });
-
-    // API #5: Automatically trigger Volunteer Emergency Dispatch & Email Notification
-    let dispatchInfo = null;
-    const shouldDispatch = createdIncident && (
-      ['Critical', 'High'].includes(createdIncident.urgency) ||
-      (createdIncident.reporter_email && createdIncident.reporter_email.includes('@') && !createdIncident.reporter_email.includes('anonymous@'))
-    );
-    if (shouldDispatch) {
-      try {
-        dispatchInfo = await dispatchVolunteerAlert(createdIncident);
-      } catch (dispErr) {
-        console.warn('Dispatch notification non-blocking warning:', dispErr.message);
-      }
-    }
 
     res.status(201).json({
       message: 'Incident created successfully',
-      incident: createdIncident,
-      dispatch: dispatchInfo
+      incident: createdIncident
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -219,25 +203,6 @@ app.get('/api/news', async (req, res) => {
   try {
     const newsData = await getLiveDisasterNews();
     res.status(200).json(newsData);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// --- EMERGENCY VOLUNTEER ALERT DISPATCH ROUTE (COMMS API) ---
-app.get('/api/alerts/logs', (req, res) => {
-  try {
-    const logs = getDispatchLogs();
-    res.status(200).json(logs);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/api/alerts/dispatch', async (req, res) => {
-  try {
-    const alertResult = await dispatchVolunteerAlert(req.body);
-    res.status(200).json(alertResult);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

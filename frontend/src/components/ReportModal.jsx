@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Sparkles, AlertCircle, Send, Loader2, CheckCircle2, MapPin } from 'lucide-react';
+import { X, Sparkles, AlertCircle, Send, Loader2, CheckCircle2 } from 'lucide-react';
 import { API_BASE_URL, SUPABASE_URL, SUPABASE_KEY } from '../config';
 
 export default function ReportModal({ isOpen, onClose, onSubmitSuccess, clickedCoords, currentUser }) {
@@ -11,7 +11,6 @@ export default function ReportModal({ isOpen, onClose, onSubmitSuccess, clickedC
   const [latitude, setLatitude] = useState(8.1033);
   const [longitude, setLongitude] = useState(124.0673);
   const [actionableNeeds, setActionableNeeds] = useState([]);
-  const [reporterEmail, setReporterEmail] = useState('');
 
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -80,7 +79,7 @@ export default function ReportModal({ isOpen, onClose, onSubmitSuccess, clickedC
         longitude: parseFloat(longitude),
         location_name: locationName || 'Pinned on Map',
         reporter_name: currentUser?.username || 'Verified Volunteer',
-        reporter_email: reporterEmail || (currentUser ? `${currentUser.username}@community.org` : 'anonymous@community.org')
+        reporter_email: currentUser?.username ? `@${currentUser.username}` : 'Verified Volunteer'
       };
 
       // 1. Try local Express backend
@@ -300,17 +299,7 @@ export default function ReportModal({ isOpen, onClose, onSubmitSuccess, clickedC
             </div>
           </div>
 
-          {/* Row 4: Reporter Email + Action Buttons on same line */}
-          {/* <div className="form-bottom-row">
-            <div className="form-group-compact flex-1">
-              <label>Reporter Email / Contact (Optional)</label>
-              <input
-                type="email"
-                placeholder="volunteer@community.org"
-                value={reporterEmail}
-                onChange={(e) => setReporterEmail(e.target.value)}
-              />
-            </div> */}
+          
 
           <div className="modal-actions-compact">
             <button type="button" className="btn-secondary-compact" onClick={onClose}>
@@ -325,12 +314,12 @@ export default function ReportModal({ isOpen, onClose, onSubmitSuccess, clickedC
               {isSubmitting ? (
                 <>
                   <Loader2 size={14} className="spin" />
-                  <span>Broadcasting...</span>
+                  <span>Submitting...</span>
                 </>
               ) : (
                 <>
                   <Send size={14} />
-                  <span>Broadcast Report</span>
+                  <span>Submit Report</span>
                 </>
               )}
             </button>

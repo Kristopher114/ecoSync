@@ -552,7 +552,7 @@ export default function App() {
       ? dateFilteredIncidents.filter(inc =>
           inc.reporter_name === currentUser?.username ||
           (Array.isArray(inc.volunteers) && inc.volunteers.includes(currentUser?.username)) ||
-          inc.reporter_email?.includes(currentUser?.username)
+          inc.reporter_email === currentUser?.username
         )
       : dateFilteredIncidents.filter(inc => inc.category === selectedCategory);
 

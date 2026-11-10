@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldAlert, MapPin, BarChart3, PlusCircle, User, ShieldCheck, LogIn, LogOut } from 'lucide-react';
+import { ShieldAlert, MapPin, BarChart3, PlusCircle, User, ShieldCheck, LogOut } from 'lucide-react';
 
 export default function Navbar({
   activeTab,
@@ -63,8 +63,8 @@ export default function Navbar({
               {isAdmin ? <ShieldCheck size={14} /> : <User size={14} />}
               <span>{isAdmin ? (adminMuniLabel ? `Admin • ${adminMuniLabel}` : 'Admin') : 'Volunteer'}</span>
             </div>
-            <span className="user-email-text" title={currentUser.username || currentUser.email}>
-              @{currentUser.username || currentUser.email}
+            <span className="user-email-text" title={currentUser.username}>
+              @{currentUser.username}
             </span>
             <button
               id="btn-sign-out"

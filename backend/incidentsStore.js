@@ -188,7 +188,8 @@ async function createIncidentRecord(incidentData) {
     latitude: incidentData.latitude,
     longitude: incidentData.longitude,
     location_name: incidentData.location_name || 'Pinned on Map',
-    reporter_email: incidentData.reporter_email || 'anonymous@community.org',
+    reporter_name: incidentData.reporter_name || 'Verified Volunteer',
+    reporter_email: incidentData.reporter_email || incidentData.reporter_name || 'Verified Volunteer',
     created_at: new Date().toISOString()
   };
 

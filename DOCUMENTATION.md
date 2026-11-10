@@ -103,7 +103,7 @@ The system features **two distinct user roles**:
 - **Incidents CRUD Endpoints**:
   - `GET /api/incidents`: Retrieves all disaster incidents ordered chronologically (`created_at DESC`).
   - `GET /api/incidents/:id`: Retrieves a single incident by ID.
-  - `POST /api/incidents`: Inserts a new citizen incident into PostgreSQL. Automatically triggers Gemini AI analysis if category/urgency are omitted, and triggers Emergency Alert Dispatch for High/Critical reports.
+  - `POST /api/incidents`: Inserts a new citizen incident into PostgreSQL. Automatically triggers Gemini AI analysis if category/urgency are omitted.
   - `PUT /api/incidents/:id`: Updates incident fields (status, urgency, resolution timestamp).
   - `DELETE /api/incidents/:id`: Deletes an incident record from the database.
 - **AI Analysis Endpoint**:
