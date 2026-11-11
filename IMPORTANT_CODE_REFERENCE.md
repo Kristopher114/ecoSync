@@ -242,14 +242,16 @@ async function getLiveWeather(lat = 8.2280, lng = 124.2450) {
 
 ---
 
-### API #2: Leaflet.js + OpenStreetMap + Nominatim Geocoding (`frontend/src/components/DisasterMap.jsx`)
-Renders the interactive map, forward-searches landmarks, and reverse-geocodes clicked coordinates into human-readable barangay/street addresses:
+### API #2: Leaflet.js + OpenStreetMap + Nominatim & Photon Geocoding (`frontend/src/components/DisasterMap.jsx` & `frontend/src/municipalities.js`)
+Renders the interactive map, forward-searches localized landmarks via **Photon + Nominatim** with 280ms debounced autocomplete, and reverse-geocodes clicked map coordinates into human-readable barangay/street addresses:
 
 ```javascript
 // 1. Initialize Leaflet Map with 100% Free OpenStreetMap Tiles
 const map = L.map(mapContainerRef.current, {
-  center: [8.0800, 123.9500], // Lanao del Norte Province-Wide Center
-  zoom: 10
+  center: [initialMuni?.lat || 8.0800, initialMuni?.lng || 123.9500], // Province-wide center
+  zoom: initialMuni?.zoom || 10,
+  zoomControl: false,
+  fadeAnimation: true
 });
 
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -269,18 +271,24 @@ map.on('click', async (e) => {
   onMapClick(lat, lng, resolvedAddress);
 });
 
-// 3. Forward Landmark Search via Nominatim Search API
-const handleSearch = async (e) => {
-  e.preventDefault();
-  const res = await fetch(
-    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`
-  );
-  const results = await res.json();
-  if (results.length > 0) {
-    const { lat, lon } = results[0];
-    mapInstanceRef.current.flyTo([parseFloat(lat), parseFloat(lon)], 15, { duration: 1.5 });
-  }
-};
+// 3. Live Debounced Municipality-Scoped Search Engine (Photon OSM API + Nominatim Bounded Viewbox)
+// Debounced 280ms autocomplete query scoped strictly within active municipality boundaries
+export async function searchLiveMunicipalityPlaces(query, muniId = 'ALL', shelters = []) {
+  const muni = getMunicipalityById(muniId);
+  const bbox = `${(muni.lng - 0.16).toFixed(4)},${(muni.lat - 0.14).toFixed(4)},${(muni.lng + 0.16).toFixed(4)},${(muni.lat + 0.14).toFixed(4)}`;
+
+  // Primary: Photon OpenStreetMap geocoding API with bounding box
+  const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&bbox=${bbox}&limit=5`;
+  const res = await fetch(photonUrl);
+  const data = await res.json();
+
+  return data.features.map(f => ({
+    name: f.properties.name,
+    municipalityName: f.properties.city || muni.name,
+    lat: f.geometry.coordinates[1],
+    lng: f.geometry.coordinates[0]
+  }));
+}
 ```
 
 ---
